@@ -2,4 +2,4 @@ venv/
 datasets/
 memo_venv/
 __pycache__/
-weight/
+weights/
