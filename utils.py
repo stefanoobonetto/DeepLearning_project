@@ -215,23 +215,21 @@ def segment_images(aug, mask_generator):
 
     for image in aug:
         image_np = np.array(image)
-        print("sn qua")
-        # Genera le maschere
         masks = mask_generator.generate(image_np)
-        print(f"Generated {len(masks)} masks")
+        # print(f"Generated {len(masks)} masks")
 
         min_mask_size = 500  # Puoi regolare questo valore in base alle tue esigenze
 
         # Filtra le maschere troppo piccole e calcola le aree delle maschere valide
         filtered_masks = [(i, mask, np.sum(mask["segmentation"])) for i, mask in enumerate(masks) if np.sum(mask["segmentation"]) >= min_mask_size]
-        print(f"Filtered to {len(filtered_masks)} masks larger than {min_mask_size} pixels")
+        # print(f"Filtered to {len(filtered_masks)} masks larger than {min_mask_size} pixels")
 
         # Ordina le maschere per area in ordine decrescente
         filtered_masks.sort(key=lambda x: x[2], reverse=True)
 
         # Tieni solo le prime 10 maschere
         top_masks = filtered_masks[:10]
-        print(f"Selected top {len(top_masks)} masks")
+        # print(f"Selected top {len(top_masks)} masks")
 
         # Creare una versione sfocata dell'intera immagine
         blurred_image = image.filter(ImageFilter.GaussianBlur(radius=15))
