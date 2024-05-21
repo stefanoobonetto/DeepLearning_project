@@ -39,7 +39,7 @@ def main(colab=False):
     correct_after_memo = []
     correct_before_memo = []
     # with tqdm(total=len(test_data)) as pbar:
-    with tqdm(total=10) as pbar:
+    with tqdm(total=100) as pbar:
         for i in range(100):
             model = ModelResNet().to(device)
             image, target = test_data[i]
@@ -58,7 +58,7 @@ def main(colab=False):
         item = item[1:]
         #print("\nAugmentations applied at image " + str(i) + " ---> " + str(item))
 
-    print(f'\nFinal MEMO accuracy: {np.mean(correct_after_memo)*100:.2f}%')
+    print(f'Before MEMO accuracy: {np.mean(correct_before_memo)*100:.2f}%  after MEMO accuracy: {np.mean(correct_after_memo)*100:.2f}%')
     
 
 
