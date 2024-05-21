@@ -47,9 +47,9 @@ def tune_model(image, model, mask_generator, optimizer, cost_function, num_aug):
 
     aug, names = apply_augmentations(image, num_aug) # num_aug +1 images
 
-    segmented_aug = segment_images(aug, mask_generator)
+    # segmented_aug = segment_images(aug, mask_generator)
 
-    segmented_aug = transform_images(segmented_aug)
+    segmented_aug = transform_images(aug)
 
     input = torch.stack(segmented_aug).to(device)
     optimizer.zero_grad()
