@@ -16,7 +16,8 @@ def main(colab=False):
     if colab:
         pathDatasetImagenetA = "/datasets/imagenet-a"
     else:
-        pathDatasetImagenetA = "/Users/simoneroman/Desktop/DL/Project/datasets/imagenet-a"
+        pathDatasetImagenetA = "/home/sagemaker-user/DeepLearning_project/datasets/imagenet-a"
+        #apt install libgl1-mesa-glx
 
     # # Instantiates dataloaders
     # batch_size = 1
@@ -48,7 +49,7 @@ def main(colab=False):
     # Scegli il tipo di modello, ad esempio 'vit_b' per il modello ViT-B
     model_type = "vit_b"
     # Percorso al checkpoint scaricato
-    checkpoint_path = "/sam_vit_b_01ec64.pth"
+    checkpoint_path = "/home/sagemaker-user/DeepLearning_project/weights/sam_vit_b_01ec64.pth"
     # Registra e carica il modello
     segmentation_model = sam_model_registry[model_type](checkpoint=checkpoint_path).to(device)
     # Crea il generatore di maschere automatico
