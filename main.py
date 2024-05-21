@@ -2,7 +2,7 @@ from utils import *
 from model import *
 from functions import *
 
-
+import os
 from tqdm import tqdm
 import torch.optim as optim
 from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
@@ -10,27 +10,12 @@ from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
 device = torch.device("cuda" if torch.cuda.is_available() else "mps")
 
 def main(colab=False):
-
-
+   
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    pathDatasetImagenetA = f"{current_dir}/datasets/imagenet-a"
+    checkpoint_path = f"{current_dir}/weights/sam_vit_b_01ec64.pth"
     
-    if colab:
-        pathDatasetImagenetA = "/datasets/imagenet-a"
-    else:
-        pathDatasetImagenetA = "/home/sagemaker-user/DeepLearning_project/datasets/imagenet-a"
-        #apt install libgl1-mesa-glx
-
-    # # Instantiates dataloaders
-    # batch_size = 1
-    # test_loader, _ = get_dataset(batch_size=batch_size, img_root=pathDatasetImagenetA)
-    # # Instantiates the model
-    # model = ModelResNet().to(device)
-    # # Instantiates the cost function
-    # cost_function = torch.nn.CrossEntropyLoss()
-
-    # # Run a single test step beforehand and print metrics
-    # print("Before training:")
-    # test_loss, test_accuracy = test_all_dataset(model, test_loader, cost_function)
-    # print(f"\tTest loss {test_loss:.5f}, Test accuracy {test_accuracy:.2f}")
+    #apt install libgl1-mesa-glx
     
     total_aug = []
 
@@ -48,8 +33,6 @@ def main(colab=False):
 
     # Scegli il tipo di modello, ad esempio 'vit_b' per il modello ViT-B
     model_type = "vit_b"
-    # Percorso al checkpoint scaricato
-    checkpoint_path = "/home/sagemaker-user/DeepLearning_project/weights/sam_vit_b_01ec64.pth"
     # Registra e carica il modello
     segmentation_model = sam_model_registry[model_type](checkpoint=checkpoint_path).to(device)
     # Crea il generatore di maschere automatico
