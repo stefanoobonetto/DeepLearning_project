@@ -19,13 +19,13 @@ transform = T.Compose([
 ])
 
 
-def get_dataset(batch_size, img_root):
+def get_dataset(batch_size, img_root, num_workers=2):
     # Load data
     imagnet_dataset_4test = torchvision.datasets.ImageFolder(root=img_root, transform=transform)
     imagnet_dataset_4memo = torchvision.datasets.ImageFolder(root=img_root)
 
     # Initialize dataloaders
-    test_loader_4test = torch.utils.data.DataLoader(imagnet_dataset_4test, batch_size, shuffle=False, num_workers=8)
+    test_loader_4test = torch.utils.data.DataLoader(imagnet_dataset_4test, batch_size, shuffle=False, num_workers=num_workers)
 
     return test_loader_4test, imagnet_dataset_4memo
 
@@ -206,8 +206,6 @@ def transform_images(images):
         return transformed_images
     else:
         return transform(images)
-
-
 
 def segment_images(aug, mask_generator):
 
