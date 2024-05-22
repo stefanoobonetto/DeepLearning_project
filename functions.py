@@ -44,7 +44,6 @@ def test_all_dataset(model, data_loader, cost_function):
 def tune_model(image, model, mask_generator, optimizer, cost_function, num_aug):
 
     model.eval()
-
     aug, names = apply_augmentations(image, num_aug) # num_aug +1 images
 
     # segmented_aug = segment_images(aug, mask_generator)
@@ -58,7 +57,7 @@ def tune_model(image, model, mask_generator, optimizer, cost_function, num_aug):
     output = torch.mean(output, dim = 0)
     output = output.unsqueeze(0)
     output = output[:, indices_in_1k]
-    loss = cost_function(output)
+    loss,_ = cost_function(output)
 
     loss.backward()
     optimizer.step()
@@ -67,20 +66,29 @@ def tune_model(image, model, mask_generator, optimizer, cost_function, num_aug):
 
 def test_model(image, target, model):
     model.eval()
-    inputs = transform(image).unsqueeze(0)
+    inputs = transform(image).unsqueeze(0).to(device)
 
     with torch.no_grad():
-        outputs = model(inputs.to(device))
+        outputs = model(inputs)
         outputs = outputs[:, indices_in_1k]
 
         _, predicted = outputs.max(1)
         confidence = nn.functional.softmax(outputs, dim=1).squeeze()[predicted].item()
     correctness = 1 if predicted.item() == target else 0
-    return correctness, confidence
+    # print(target, predicted.item())
+    return correctness#, confidence
+
+# def marginal_entropy(outputs):
+#     # probabilities = torch.softmax(outputs, dim=1)   # convert to probabilities  (sum up to 1)
+#     # entropy = -torch.sum(outputs * torch.log(outputs + 1e-10), dim=1)  # adding small value to avoid log(0)
+#     entropy = -torch.sum(outputs * torch.log(outputs))
+
+#     return entropy
+
 
 def marginal_entropy(outputs):
-    probabilities = torch.softmax(outputs, dim=1)   # convert to probabilities  (sum up to 1)
-    # entropy = -torch.sum(outputs * torch.log(outputs + 1e-10), dim=1)  # adding small value to avoid log(0)
-    entropy = torch.sum(-outputs * torch.log(outputs))
-
-    return entropy
+    logits = outputs - outputs.logsumexp(dim=-1, keepdim=True)
+    avg_logits = logits.logsumexp(dim=0) - np.log(logits.shape[0])
+    min_real = torch.finfo(avg_logits.dtype).min
+    avg_logits = torch.clamp(avg_logits, min=min_real)
+    return -(avg_logits * torch.exp(avg_logits)).sum(dim=-1), avg_logits
