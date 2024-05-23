@@ -9,6 +9,8 @@ from tqdm import tqdm
 import torch.optim as optim
 from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
 
+#sudo apt install libgl1-mesa-glx
+
 device = torch.device("cuda" if torch.cuda.is_available() else "mps")
 
 # Funzione per salvare i dati di accuratezza in un file CSV
@@ -22,8 +24,8 @@ def save_accuracy_to_csv(accuracy_classes, output_path):
             writer.writerow(["Class", "Accuracy (%)"])
         for elem in accuracy_classes:
             if len(accuracy_classes[elem]) > 0:
-                accuracy = round((sum(accuracy_classes[elem]) / len(accuracy_classes[elem])) * 100, 2)
-                writer.writerow([elem, accuracy,accuracy_classes[elem]])
+                accuracy = round((sum(accuracy_classes[elem]["prediction"]) / len(accuracy_classes[elem]["prediction"])) * 100, 2)
+                writer.writerow([elem, accuracy,accuracy_classes[elem]['prediction'],accuracy_classes[elem]['augmentation']])
 
 def main(colab=False):
     # Define paths and directories
@@ -75,8 +77,9 @@ def main(colab=False):
     correct_after_memo = []
     accuracy_classes = {}
     for i in range(200):
-        accuracy_classes[f"{i}_before_MEMO"] = []
-        accuracy_classes[f"{i}_after_MEMO"] = []
+        accuracy_classes[f"{i}_before_MEMO"] = {"prediction":[], "augmentation":[]}
+        accuracy_classes[f"{i}_after_MEMO"] = {"prediction":[], "augmentation":[]}
+    
 
     # Process test data
     pbar = tqdm(range(len(test_data)))  # Adjust the range as necessary
@@ -93,7 +96,7 @@ def main(colab=False):
         correct_before_memo.append(test_model(image=image, target=target, model=model))
 
         # Tune the model using MEMO
-        tune_model(image=image, model=model, mask_generator=mask_generator, optimizer=optimizer, cost_function=marginal_entropy, num_aug=num_aug)
+        augmentation = tune_model(image=image, model=model, mask_generator=mask_generator, optimizer=optimizer, cost_function=marginal_entropy, num_aug=num_aug)
 
         # Test the model after applying MEMO
         correct_after_memo.append(test_model(image=image, target=target, model=model))
@@ -102,8 +105,13 @@ def main(colab=False):
         accuracy_before_memo = (sum(correct_before_memo)/len(correct_before_memo))*100
         accuracy_after_memo = (sum(correct_after_memo)/len(correct_after_memo))*100
 
-        accuracy_classes[f"{target}_before_MEMO"].append(correct_before_memo[i])
-        accuracy_classes[f"{target}_after_MEMO"].append(correct_after_memo[i])
+
+        accuracy_classes[f"{target}_before_MEMO"]["prediction"].append(correct_before_memo[i])
+        accuracy_classes[f"{target}_after_MEMO"]["prediction"].append(correct_after_memo[i])
+
+        accuracy_classes[f"{target}_before_MEMO"]["augmentation"].append(augmentation)
+        accuracy_classes[f"{target}_after_MEMO"]["augmentation"].append(augmentation)
+
         # Update progress bar with current accuracy
         pbar.set_description(f'Before MEMO accuracy: {accuracy_before_memo:.2f}%  after MEMO accuracy: {accuracy_after_memo:.2f}%')
 
