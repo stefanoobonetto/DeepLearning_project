@@ -3,12 +3,27 @@ from model import *
 from functions import *
 
 import os
-from tqdm import tqdm
+import csv
 import torch
+from tqdm import tqdm
 import torch.optim as optim
 from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
 
 device = torch.device("cuda" if torch.cuda.is_available() else "mps")
+
+# Funzione per salvare i dati di accuratezza in un file CSV
+def save_accuracy_to_csv(accuracy_classes, output_path):
+    # Creare il file se non esiste
+    file_exists = os.path.isfile(output_path)
+    with open(output_path, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        # Scrivere l'intestazione solo se il file non esiste
+        if not file_exists:
+            writer.writerow(["Class", "Accuracy (%)"])
+        for elem in accuracy_classes:
+            if len(accuracy_classes[elem]) > 0:
+                accuracy = round((sum(accuracy_classes[elem]) / len(accuracy_classes[elem])) * 100, 2)
+                writer.writerow([elem, accuracy,accuracy_classes[elem]])
 
 def main(colab=False):
     # Define paths and directories
@@ -58,9 +73,13 @@ def main(colab=False):
     # Lists to store results
     correct_before_memo = []
     correct_after_memo = []
+    accuracy_classes = {}
+    for i in range(200):
+        accuracy_classes[f"{i}_before_MEMO"] = []
+        accuracy_classes[f"{i}_after_MEMO"] = []
 
     # Process test data
-    pbar = tqdm(range(77))  # Adjust the range as necessary
+    pbar = tqdm(range(len(test_data)))  # Adjust the range as necessary
     for i in pbar:
         # Reset model to initial weights before each iteration
         #model = ModelResNet().to(device)
@@ -80,14 +99,28 @@ def main(colab=False):
         correct_after_memo.append(test_model(image=image, target=target, model=model))
 
         # print(correct_before_memo[i], correct_after_memo[i])
+        accuracy_before_memo = (sum(correct_before_memo)/len(correct_before_memo))*100
+        accuracy_after_memo = (sum(correct_after_memo)/len(correct_after_memo))*100
 
+        accuracy_classes[f"{target}_before_MEMO"].append(correct_before_memo[i])
+        accuracy_classes[f"{target}_after_MEMO"].append(correct_after_memo[i])
         # Update progress bar with current accuracy
-        pbar.set_description(f'Before MEMO accuracy: {np.mean(correct_before_memo)*100:.2f}%  after MEMO accuracy: {np.mean(correct_after_memo)*100:.2f}%')
+        pbar.set_description(f'Before MEMO accuracy: {accuracy_before_memo:.2f}%  after MEMO accuracy: {accuracy_after_memo:.2f}%')
 
     # Print final results
-    print(f'Before MEMO accuracy: {(sum(correct_before_memo)/len(correct_before_memo))*100:.2f}%  after MEMO accuracy: {np.mean(correct_after_memo)*100:.2f}%')
-    print(correct_before_memo)
-    print(correct_after_memo)
+    print(f'Before MEMO accuracy: {accuracy_before_memo:.2f}%  after MEMO accuracy: {accuracy_after_memo:.2f}%')
+    
+    # # print(accuracy_classes)
+    # for elem in accuracy_classes:
+    #     if (len(accuracy_classes[elem])>0):
+    #         accuracy= round((sum(accuracy_classes[elem])/len(accuracy_classes[elem]))*100,2)
+    #         print(f"{elem} -> {accuracy}")
+
+    # Salvataggio dei dati di accuratezza in un file CSV
+    output_csv_path = os.path.join(current_dir, "accuracy_results.csv")
+    save_accuracy_to_csv(accuracy_classes, output_csv_path)
+    print(f"Accuracy results saved to {output_csv_path}")
+
 
 if __name__ == "__main__":
     colab = False
