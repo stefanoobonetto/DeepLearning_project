@@ -10,7 +10,6 @@ class ModelResNet(nn.Module):
         
     def forward(self, input):
         
-        # Get the BERT output
         output = self.resnet50(input)
 
         return output
@@ -24,7 +23,6 @@ class ModelVitb16(nn.Module):
         
     def forward(self, input):
         
-        # Get the BERT output
         output = self.vitb(input)
 
         return output
