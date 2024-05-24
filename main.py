@@ -43,9 +43,10 @@ def main(colab=False):
     num_aug = 8
 
     # Initialize ResNet50 model and save initial weights
-    model = resnet50(weights=ResNet50_Weights.DEFAULT).to(device)
+    #model = ModelResNet().to(device)
+    model = ModelVitb16().to(device)
     
-    initial_weights_path = os.path.join(current_dir, "weights/resnet50_weights.pth")
+    initial_weights_path = os.path.join(current_dir, "weights/ModelVitb16_weights.pth")
     torch.save(model.state_dict(), initial_weights_path)
     initial_weights = model.state_dict()
 
