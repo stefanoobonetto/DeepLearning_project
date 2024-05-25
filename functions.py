@@ -41,12 +41,13 @@ def test_all_dataset(model, data_loader, cost_function):
 
 
 
-def tune_model(image, model, mask_generator, optimizer, cost_function, num_aug):
+def tune_model(image, model, mask_generator, optimizer, cost_function, num_aug, flag_memo_plus = False):
 
     model.eval()
     aug, names = apply_augmentations(image, num_aug) # num_aug +1 images
 
-    # segmented_aug = segment_images(aug, mask_generator)
+    if flag_memo_plus:
+        segmented_aug = segment_all(aug, mask_generator)
 
     segmented_aug = transform_images(aug)
 
@@ -76,7 +77,7 @@ def test_model(image, target, model):
         confidence = nn.functional.softmax(outputs, dim=1).squeeze()[predicted].item()
     correctness = 1 if predicted.item() == target else 0
     # print(target, predicted.item())
-    return correctness#, confidence
+    return correctness, confidence
 
 # def marginal_entropy(outputs):
 #     # probabilities = torch.softmax(outputs, dim=1)   # convert to probabilities  (sum up to 1)

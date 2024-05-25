@@ -14,7 +14,7 @@ from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
 device = torch.device("cuda" if torch.cuda.is_available() else "mps")
 
 # Funzione per salvare i dati di accuratezza in un file CSV
-def save_accuracy_to_csv(accuracy_classes, output_path):
+def save_accuracy_to_csv(accuracy_classes, output_path, accuracy_before_memo,accuracy_after_memo,accuracy_after_memo_plus):
     # Creare il file se non esiste
     file_exists = os.path.isfile(output_path)
     with open(output_path, mode='w', newline='') as file:
@@ -24,8 +24,11 @@ def save_accuracy_to_csv(accuracy_classes, output_path):
             writer.writerow(["Class", "Accuracy (%)"])
         for elem in accuracy_classes:
             if len(accuracy_classes[elem]) > 0:
-                accuracy = round((sum(accuracy_classes[elem]["prediction"]) / len(accuracy_classes[elem]["prediction"])) * 100, 2)
+                # accuracy = round((sum(accuracy_classes[elem]["prediction"]) / len(accuracy_classes[elem]["prediction"])) * 100, 2)
+                accuracy = round(np.mean(accuracy_classes[elem]["prediction"])*100,2)
                 writer.writerow([elem, accuracy,accuracy_classes[elem]['prediction'],accuracy_classes[elem]['augmentation']])
+                
+        writer.writerow([accuracy_before_memo, accuracy_after_memo, accuracy_after_memo_plus])
 
 def main(colab=False):
     # Define paths and directories
@@ -76,10 +79,13 @@ def main(colab=False):
     # Lists to store results
     correct_before_memo = []
     correct_after_memo = []
+    correct_after_memo_plus = []
     accuracy_classes = {}
-    for i in range(200):
+    for i in range(200): 
         accuracy_classes[f"{i}_before_MEMO"] = {"prediction":[], "augmentation":[]}
         accuracy_classes[f"{i}_after_MEMO"] = {"prediction":[], "augmentation":[]}
+        accuracy_classes[f"{i}_after_MEMO_PLUS"] = {"prediction":[], "augmentation":[]}
+
     
 
     # Process test data
@@ -97,27 +103,42 @@ def main(colab=False):
         correct_before_memo.append(test_model(image=image, target=target, model=model))
 
         # Tune the model using MEMO
-        augmentation = tune_model(image=image, model=model, mask_generator=mask_generator, optimizer=optimizer, cost_function=marginal_entropy, num_aug=num_aug)
+        augmentation = tune_model(image=image, model=model, mask_generator=mask_generator, optimizer=optimizer, cost_function=marginal_entropy, num_aug=num_aug, flag_memo_plus=False)
 
         # Test the model after applying MEMO
         correct_after_memo.append(test_model(image=image, target=target, model=model))
 
-        # print(correct_before_memo[i], correct_after_memo[i])
-        accuracy_before_memo = (sum(correct_before_memo)/len(correct_before_memo))*100
-        accuracy_after_memo = (sum(correct_after_memo)/len(correct_after_memo))*100
+        model.load_state_dict(torch.load(initial_weights_path))
+        model.eval()
+
+        # Tune the model using MEMO
+        augmentation_plus = tune_model(image=image, model=model, mask_generator=mask_generator, optimizer=optimizer, cost_function=marginal_entropy, num_aug=num_aug, flag_memo_plus=True)
+
+        # Test the model after applying MEMO
+        correct_after_memo_plus.append(test_model(image=image, target=target, model=model))
+        
+
+        # accuracy
+        accuracy_before_memo = np.mean(correct_before_memo)*100
+        accuracy_after_memo = np.mean(correct_after_memo)*100
+        accuracy_after_memo_plus = np.mean(correct_after_memo_plus)*100
+        #accuracy_before_memo = (sum(correct_before_memo)/len(correct_before_memo))*100
+        #accuracy_after_memo = (sum(correct_after_memo)/len(correct_after_memo))*100
 
 
         accuracy_classes[f"{target}_before_MEMO"]["prediction"].append(correct_before_memo[i])
         accuracy_classes[f"{target}_after_MEMO"]["prediction"].append(correct_after_memo[i])
+        accuracy_classes[f"{target}_after_MEMO_PLUS"]["prediction"].append(correct_after_memo[i])
 
         accuracy_classes[f"{target}_before_MEMO"]["augmentation"].append(augmentation)
         accuracy_classes[f"{target}_after_MEMO"]["augmentation"].append(augmentation)
+        accuracy_classes[f"{target}_after_MEMO_PLUS"]["augmentation"].append(augmentation_plus)
 
         # Update progress bar with current accuracy
-        pbar.set_description(f'Before MEMO accuracy: {accuracy_before_memo:.2f}%  after MEMO accuracy: {accuracy_after_memo:.2f}%')
+        pbar.set_description(f'Before MEMO: {accuracy_before_memo:.2f}%  after MEMO: {accuracy_after_memo:.2f}% after MEMO_PLUS: {accuracy_after_memo_plus:.2f}%')
 
     # Print final results
-    print(f'Before MEMO accuracy: {accuracy_before_memo:.2f}%  after MEMO accuracy: {accuracy_after_memo:.2f}%')
+    print(f'Before MEMO: {accuracy_before_memo:.2f}%  after MEMO: {accuracy_after_memo:.2f}% after MEMO_PLUS: {accuracy_after_memo_plus:.2f}%')
     
     # # print(accuracy_classes)
     # for elem in accuracy_classes:
@@ -127,7 +148,7 @@ def main(colab=False):
 
     # Salvataggio dei dati di accuratezza in un file CSV
     output_csv_path = os.path.join(current_dir, "accuracy_results.csv")
-    save_accuracy_to_csv(accuracy_classes, output_csv_path)
+    save_accuracy_to_csv(accuracy_classes, output_csv_path, accuracy_before_memo,accuracy_after_memo,accuracy_after_memo_plus)
     print(f"Accuracy results saved to {output_csv_path}")
 
 
