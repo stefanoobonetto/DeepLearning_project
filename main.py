@@ -19,13 +19,11 @@ def save_accuracy_to_csv(accuracy_classes, output_path, accuracy_before_memo,acc
     file_exists = os.path.isfile(output_path)
     with open(output_path, mode='w', newline='') as file:
         writer = csv.writer(file)
-        # Scrivere l'intestazione solo se il file non esiste
-        if not file_exists:
-            writer.writerow(["Class", "Accuracy (%)"])
+        writer.writerow(["Class", "Accuracy", "Result_for_image", "Augmentation_for_image" ])
         for elem in accuracy_classes:
-            if len(accuracy_classes[elem]) > 0:
+            if len(accuracy_classes[elem]["prediction"]) > 0:
                 # accuracy = round((sum(accuracy_classes[elem]["prediction"]) / len(accuracy_classes[elem]["prediction"])) * 100, 2)
-                accuracy = round(np.mean(accuracy_classes[elem]["prediction"])*100,2)
+                accuracy = round(np.mean(accuracy_classes[elem]["prediction"])*100, 2)
                 writer.writerow([elem, accuracy,accuracy_classes[elem]['prediction'],accuracy_classes[elem]['augmentation']])
                 
         writer.writerow([accuracy_before_memo, accuracy_after_memo, accuracy_after_memo_plus])
@@ -35,6 +33,7 @@ def main(colab=False):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     pathDatasetImagenetA = os.path.join(current_dir, "datasets/imagenet-a")
     checkpoint_path = os.path.join(current_dir, "weights/sam_vit_b_01ec64.pth")
+    output_csv_path = os.path.join(current_dir, "test_1_all_dataset_RESNET50.csv")
     
     # List to store augmentation results
     total_aug = []
@@ -46,12 +45,11 @@ def main(colab=False):
     num_aug = 8
 
     # Initialize ResNet50 model and save initial weights
-    #model = ModelResNet().to(device)
-    model = ModelVitb16().to(device)
+    model = ModelResNet().to(device)
+    # model = ModelVitb16().to(device)
     
-    initial_weights_path = os.path.join(current_dir, "weights/ModelVitb16_weights.pth")
+    initial_weights_path = os.path.join(current_dir, "weights/weights_model_in_use.pth")
     torch.save(model.state_dict(), initial_weights_path)
-    initial_weights = model.state_dict()
 
     # Define optimizer
     lr = 0.00025
@@ -62,19 +60,6 @@ def main(colab=False):
     model_type = "vit_b"
     segmentation_model = sam_model_registry[model_type](checkpoint=checkpoint_path).to(device)
     mask_generator = SamAutomaticMaskGenerator(segmentation_model)
-
-    #  # Instantiates dataloaders
-    # batch_size = 1
-    # test_loader, _ = get_dataset(batch_size=batch_size, img_root=pathDatasetImagenetA)
-    # # Instantiates the model
-    # model = ModelResNet().to(device)
-    # # Instantiates the cost function
-    # cost_function = torch.nn.CrossEntropyLoss()
-
-    # # Run a single test step beforehand and print metrics
-    # print("Before training:")
-    # test_loss, test_accuracy = test_all_dataset(model, test_loader, cost_function)
-    # print(f"\tTest loss {test_loss:.5f}, Test accuracy {test_accuracy:.2f}")
 
     # Lists to store results
     correct_before_memo = []
@@ -92,7 +77,6 @@ def main(colab=False):
     pbar = tqdm(range(len(test_data)))  # Adjust the range as necessary
     for i in pbar:
         # Reset model to initial weights before each iteration
-        #model = ModelResNet().to(device)
         model.load_state_dict(torch.load(initial_weights_path))
         model.eval()
         
@@ -130,24 +114,22 @@ def main(colab=False):
         accuracy_classes[f"{target}_after_MEMO"]["prediction"].append(correct_after_memo[i])
         accuracy_classes[f"{target}_after_MEMO_PLUS"]["prediction"].append(correct_after_memo_plus[i])
 
-        accuracy_classes[f"{target}_before_MEMO"]["augmentation"].append(augmentation)
         accuracy_classes[f"{target}_after_MEMO"]["augmentation"].append(augmentation)
         accuracy_classes[f"{target}_after_MEMO_PLUS"]["augmentation"].append(augmentation_plus)
+        
+        # Salvataggio dei dati di accuratezza in un file CSV ogni 100 epoche
+        if( i % 100 == 0):
+            save_accuracy_to_csv(accuracy_classes, output_csv_path, accuracy_before_memo,accuracy_after_memo,accuracy_after_memo_plus)
 
         # Update progress bar with current accuracy
         pbar.set_description(f'Before MEMO: {accuracy_before_memo:.2f}%  after MEMO: {accuracy_after_memo:.2f}% after MEMO_PLUS: {accuracy_after_memo_plus:.2f}%')
 
+
+
     # Print final results
     print(f'Before MEMO: {accuracy_before_memo:.2f}%  after MEMO: {accuracy_after_memo:.2f}% after MEMO_PLUS: {accuracy_after_memo_plus:.2f}%')
-    
-    # # print(accuracy_classes)
-    # for elem in accuracy_classes:
-    #     if (len(accuracy_classes[elem])>0):
-    #         accuracy= round((sum(accuracy_classes[elem])/len(accuracy_classes[elem]))*100,2)
-    #         print(f"{elem} -> {accuracy}")
 
     # Salvataggio dei dati di accuratezza in un file CSV
-    output_csv_path = os.path.join(current_dir, "accuracy_results.csv")
     save_accuracy_to_csv(accuracy_classes, output_csv_path, accuracy_before_memo,accuracy_after_memo,accuracy_after_memo_plus)
     print(f"Accuracy results saved to {output_csv_path}")
 
