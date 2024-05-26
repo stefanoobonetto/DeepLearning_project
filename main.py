@@ -128,7 +128,7 @@ def main(colab=False):
 
         accuracy_classes[f"{target}_before_MEMO"]["prediction"].append(correct_before_memo[i])
         accuracy_classes[f"{target}_after_MEMO"]["prediction"].append(correct_after_memo[i])
-        accuracy_classes[f"{target}_after_MEMO_PLUS"]["prediction"].append(correct_after_memo[i])
+        accuracy_classes[f"{target}_after_MEMO_PLUS"]["prediction"].append(correct_after_memo_plus[i])
 
         accuracy_classes[f"{target}_before_MEMO"]["augmentation"].append(augmentation)
         accuracy_classes[f"{target}_after_MEMO"]["augmentation"].append(augmentation)
