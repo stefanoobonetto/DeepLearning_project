@@ -33,7 +33,7 @@ def main(colab=False):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     pathDatasetImagenetA = os.path.join(current_dir, "datasets/imagenet-a")
     checkpoint_path = os.path.join(current_dir, "weights/sam_vit_b_01ec64.pth")
-    output_csv_path = os.path.join(current_dir, "test_1_all_dataset_RESNET50.csv")
+    output_csv_path = os.path.join(current_dir, "test_4_all_dataset_VITB_segmentation_crop_only_three_segmentation.csv")
     
     # List to store augmentation results
     total_aug = []
@@ -45,8 +45,8 @@ def main(colab=False):
     num_aug = 8
 
     # Initialize ResNet50 model and save initial weights
-    model = ModelResNet().to(device)
-    # model = ModelVitb16().to(device)
+    #model = ModelVitb16.to(devsegment_original_cropice)
+    model = ModelVitb16().to(device)
     
     initial_weights_path = os.path.join(current_dir, "weights/weights_model_in_use.pth")
     torch.save(model.state_dict(), initial_weights_path)
