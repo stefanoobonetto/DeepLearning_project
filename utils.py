@@ -157,7 +157,7 @@ augmentations = [
     rotation,
     zoom,
     flip_horizontal,
-    # flip_vertical,
+    flip_vertical,
     greyscale,
     inverse,
     blur,
@@ -343,8 +343,9 @@ def segment_original_crop(aug, mask_generator):
 def segment_original_crop(aug, mask_generator):
     ret_images = []
 
-    for elem in aug:
-        ret_images.append(aug)
+    # for elem in aug:
+    #     ret_images.append(aug)
+    ret_images.append(aug[0])
 
     image = aug[0]
     image_np = np.array(image)

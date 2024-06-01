@@ -42,7 +42,7 @@ def main(colab=False):
     _, test_data = get_dataset(batch_size=1, img_root=pathDatasetImagenetA)
 
     # Number of augmentations
-    num_aug = 16
+    num_aug = 8
 
     # Initialize ResNet50 model and save initial weights
     #model = ModelVitb16.to(devsegment_original_cropice)
@@ -92,8 +92,8 @@ def main(colab=False):
         # Test the model after applying MEMO
         correct_after_memo.append(test_model(image=image, target=target, model=model))
 
-        model.load_state_dict(torch.load(initial_weights_path))
-        model.eval()
+        # model.load_state_dict(torch.load(initial_weights_path))
+        # model.eval()
 
         # Tune the model using MEMO
         augmentation_plus = tune_model(image=image, model=model, mask_generator=mask_generator, optimizer=optimizer, cost_function=marginal_entropy, num_aug=num_aug, flag_memo_plus=True)
