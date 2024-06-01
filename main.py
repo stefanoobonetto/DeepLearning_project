@@ -33,7 +33,7 @@ def main(colab=False):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     pathDatasetImagenetA = os.path.join(current_dir, "datasets/imagenet-a")
     checkpoint_path = os.path.join(current_dir, "weights/sam_vit_b_01ec64.pth")
-    output_csv_path = os.path.join(current_dir, "test_4_all_dataset_VITB_segmentation_crop_only_three_segmentation.csv")
+    output_csv_path = os.path.join(current_dir, "Results/test_5_all_dataset_VITB_before_memo_after_segmentation_only.csv")
     
     # List to store augmentation results
     total_aug = []
@@ -42,7 +42,7 @@ def main(colab=False):
     _, test_data = get_dataset(batch_size=1, img_root=pathDatasetImagenetA)
 
     # Number of augmentations
-    num_aug = 8
+    num_aug = 16
 
     # Initialize ResNet50 model and save initial weights
     #model = ModelVitb16.to(devsegment_original_cropice)
@@ -118,7 +118,7 @@ def main(colab=False):
         accuracy_classes[f"{target}_after_MEMO_PLUS"]["augmentation"].append(augmentation_plus)
         
         # Salvataggio dei dati di accuratezza in un file CSV ogni 100 epoche
-        if( i % 100 == 0):
+        if( i % 5 == 0):
             save_accuracy_to_csv(accuracy_classes, output_csv_path, accuracy_before_memo,accuracy_after_memo,accuracy_after_memo_plus)
 
         # Update progress bar with current accuracy
