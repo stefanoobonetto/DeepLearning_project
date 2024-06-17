@@ -290,7 +290,7 @@ def segment_original_blur(aug, mask_generator):
     return ret_images
 
 
-def segment_original_crop(aug, mask_generator):
+def segment_original_crop_plus_augmentation(aug, mask_generator):
     ret_images = []
 
     for elem in aug:
@@ -340,7 +340,7 @@ def segment_original_crop(aug, mask_generator):
 
 
 
-def segment_original_crop(aug, mask_generator):
+def segment_original_crop_only_segmentation(aug, mask_generator):
     ret_images = []
 
     # for elem in aug:
@@ -378,6 +378,54 @@ def segment_original_crop(aug, mask_generator):
         # Ritaglia l'immagine originale utilizzando il bounding box
         cropped_image_np = image_np[y_min:y_max+1, x_min:x_max+1]
         segmented_image_pil = Image.fromarray(cropped_image_np)
+        ret_images.append(segmented_image_pil)
+
+        # # Crea una maschera inversa
+        # inverse_mask_np = np.logical_not(mask_np)
+
+        # # Applica la maschera inversa all'immagine sfocata
+        # segmented_image = np.where(inverse_mask_np[:, :, None], blurred_image_np, image_np)
+        # segmented_image_pil = Image.fromarray(segmented_image)
+        # ret_images.append(segmented_image_pil)
+
+    return ret_images
+
+
+
+def segment_original_blackBG_only_segmentation(aug, mask_generator):
+    ret_images = []
+
+    # for elem in aug:
+    #     ret_images.append(aug)
+    ret_images.append(aug[0])
+
+    image = aug[0]
+    image_np = np.array(image)
+    masks = mask_generator.generate(image_np)
+    # print(f"Generated {len(masks)} masks")
+
+    min_mask_size = 500  # Puoi regolare questo valore in base alle tue esigenze
+
+    # Filtra le maschere troppo piccole e calcola le aree delle maschere valide
+    filtered_masks = [(i, mask, np.sum(mask["segmentation"])) for i, mask in enumerate(masks) if np.sum(mask["segmentation"]) >= min_mask_size]
+    # print(f"Filtered to {len(filtered_masks)} masks larger than {min_mask_size} pixels")
+
+    # Ordina le maschere per area in ordine decrescente
+    filtered_masks.sort(key=lambda x: x[2], reverse=True)
+
+    # Tieni solo le prime 10 maschere
+    top_masks = filtered_masks[:3]
+    # print(len(top_masks))
+    # print(f"Selected top {len(top_masks)} masks")
+    black_background_np = np.zeros_like(image_np)
+    # Loop through each top mask and create separate images with blurred background
+    for i, (original_index, mask, mask_size) in enumerate(top_masks):
+        mask_np = mask["segmentation"]
+
+        inverse_mask_np = np.logical_not(mask_np)
+        segmented_image = np.where(inverse_mask_np[:, :, None], black_background_np, image_np)
+        
+        segmented_image_pil = Image.fromarray(segmented_image)
         ret_images.append(segmented_image_pil)
 
         # # Crea una maschera inversa

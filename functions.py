@@ -47,7 +47,7 @@ def tune_model(image, model, mask_generator, optimizer, cost_function, num_aug, 
     aug, names = apply_augmentations(image, num_aug) # num_aug +1 images
 
     if flag_memo_plus:
-        segmented_aug = segment_original_crop(aug, mask_generator)
+        segmented_aug = segment_original_blackBG_only_segmentation(aug, mask_generator)
 
     segmented_aug = transform_images(aug)
 
