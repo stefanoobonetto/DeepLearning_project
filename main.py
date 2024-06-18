@@ -9,7 +9,19 @@ from tqdm import tqdm
 import torch.optim as optim
 from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
 
+# import ssl
+
+# try:
+#     _create_unverified_https_context = ssl._create_unverified_context
+# except AttributeError:
+#     pass
+# else:
+#     ssl._create_default_https_context = _create_unverified_https_context
 #sudo apt install libgl1-mesa-glx
+# wget https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth
+# wget https://people.eecs.berkeley.edu/~hendrycks/imagenet-a.tar
+# mkdir -p datasets
+# tar -xf imagenet-a.tar -C datasets
 
 device = torch.device("cuda" if torch.cuda.is_available() else "mps")
 
