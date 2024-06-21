@@ -3,7 +3,6 @@ datasets
 memo_venv
 __pycache__
 weights
-.DS_STORE
-DS_STORE
-
+DS_Store
+.DS_Store
 
