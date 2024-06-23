@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from functions import *
 
 def show_cam_on_image(img: np.ndarray, mask: np.ndarray, colormap: int = cv2.COLORMAP_JET, image_weight: float = 0.5):
     heatmap = cv2.applyColorMap(np.uint8(255 * mask), colormap)
@@ -42,6 +43,10 @@ class ActivationsAndGradients:
         self.gradients = []
         self.activations = []
         return self.model(x)
+    
+    def release(self):
+        for handle in self.handles:
+            handle.remove()
 
 class GradCam:
     def __init__(self, model, target_layers, reshape_transform=None):
@@ -52,7 +57,9 @@ class GradCam:
 
     def forward(self, input_tensor, targets=None):
         output = self.activations_and_grads(input_tensor)
+        output = output[:, indices_in_1k]
         target_category = output.argmax(dim=1).item()
+        
 
         self.model.zero_grad()
         loss = output[:, target_category].sum()
@@ -99,6 +106,8 @@ class GradCam:
 
     def __call__(self, input_tensor, targets=None, aug_smooth=False):
         return self.forward(input_tensor, targets)
+    def __del__(self):
+        self.activations_and_grads.release()
 
 def reshape_transform(tensor, height=14, width=14):
     result = tensor[:, 1:, :].reshape(tensor.size(0),

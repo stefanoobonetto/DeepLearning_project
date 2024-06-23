@@ -11,6 +11,9 @@ from tqdm import tqdm
 import torch.optim as optim
 from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
 
+import matplotlib.pyplot as plt
+from PIL import Image
+
 # import ssl
 
 # try:
@@ -43,14 +46,12 @@ def save_accuracy_to_csv(accuracy_classes, output_path, accuracy_before_memo,acc
         writer.writerow([accuracy_before_memo, accuracy_after_memo, accuracy_after_memo_plus])
 
 
-import os
-import matplotlib.pyplot as plt
-from PIL import Image
+
 
 def save_report_image(image=None, augmentation=None, segmentation=None, gradcam_original=None, gradcam_memo=None, gradcam_memo_plus=None, output_path=None, n_image = None):
     # Create directory if it does not exist
     output_path = f"{output_path}/image_{n_image}"
-    print(output_path)
+    # print(output_path)
  
     os.makedirs(output_path, exist_ok=True)
     
@@ -74,7 +75,7 @@ def save_report_image(image=None, augmentation=None, segmentation=None, gradcam_
 
         # Save the combined image (the grid of augmentations)
         grid_output_path = os.path.join(os.path.dirname(output_path), f'image_{n_image}/augmentation_grid.png')
-        print(grid_output_path)
+        # print(grid_output_path)
         plt.savefig(grid_output_path, bbox_inches='tight')
         plt.close(fig)
 
