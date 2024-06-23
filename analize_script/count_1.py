@@ -1,6 +1,6 @@
 import csv
 
-filename = "/home/sagemaker-user/DeepLearning_project/Results/test_6_all_dataset_VITB_before_memo_after_segmentation_only_black_background.csv"
+filename = "/home/disi/DeepLearning_project/Results/test.csv"
 
 
 count_before = 0

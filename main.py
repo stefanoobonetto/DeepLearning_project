@@ -1,6 +1,8 @@
 from utils import *
 from model import *
+from gradcam import *
 from functions import *
+
 
 import os
 import csv
@@ -40,12 +42,102 @@ def save_accuracy_to_csv(accuracy_classes, output_path, accuracy_before_memo,acc
                 
         writer.writerow([accuracy_before_memo, accuracy_after_memo, accuracy_after_memo_plus])
 
+
+import os
+import matplotlib.pyplot as plt
+from PIL import Image
+
+def save_report_image(image=None, augmentation=None, segmentation=None, gradcam_original=None, gradcam_memo=None, gradcam_memo_plus=None, output_path=None, n_image = None):
+    # Create directory if it does not exist
+    output_path = f"{output_path}/image_{n_image}"
+    print(output_path)
+ 
+    os.makedirs(output_path, exist_ok=True)
+    
+
+    if augmentation:
+        # Determine the size of each augmentation image (assuming they are all the same size)
+        width, height = augmentation[0].size
+
+        # Create a figure to contain the 9 augmentation images in a 3x3 grid with spaces between them
+        fig, axes = plt.subplots(3, 3, figsize=(width*3/100, height*3/100), gridspec_kw={'wspace': 0.1, 'hspace': 0.1})
+
+        # Hide axes
+        for ax in axes.flatten():
+            ax.axis('off')
+
+        # Paste each augmentation image into the grid
+        for i, aug_img in enumerate(augmentation):
+            row = i // 3
+            col = i % 3
+            axes[row, col].imshow(aug_img)
+
+        # Save the combined image (the grid of augmentations)
+        grid_output_path = os.path.join(os.path.dirname(output_path), f'image_{n_image}/augmentation_grid.png')
+        print(grid_output_path)
+        plt.savefig(grid_output_path, bbox_inches='tight')
+        plt.close(fig)
+
+    if segmentation:
+        # Determine the number of segmentation images
+        num_seg_images = len(segmentation)
+        rows = (num_seg_images + 1) // 2  # 2 images per row
+
+        # Create a figure to contain the segmentation images in a grid with spaces between them
+        fig, axes = plt.subplots(rows, 2, figsize=(width*2/100, height*rows/100), gridspec_kw={'wspace': 0.1, 'hspace': 0.1})
+
+        # If there's only one row, axes might not be a 2D array
+        if rows == 1:
+            axes = np.expand_dims(axes, axis=0)
+
+        # Hide axes
+        for ax in axes.flatten():
+            ax.axis('off')
+
+        # Paste each segmentation image into the grid
+        for i, seg_img in enumerate(segmentation):
+            row = i // 2
+            col = i % 2
+            axes[row, col].imshow(seg_img)
+
+        # Save the combined image (the grid of segmentation images)
+        seg_output_path = os.path.join(os.path.dirname(output_path), f'image_{n_image}/segmentation_grid.png')
+        plt.savefig(seg_output_path, bbox_inches='tight')
+        plt.close(fig)
+
+    # Save the other images if they are provided
+    if image:
+        image.save(os.path.join(os.path.dirname(output_path), f'image_{n_image}/original_image.png'))
+    if gradcam_original:
+        gradcam_original.save(os.path.join(os.path.dirname(output_path), f'image_{n_image}/gradcam_original.png'))
+    if gradcam_memo:
+        gradcam_memo.save(os.path.join(os.path.dirname(output_path), f'image_{n_image}/gradcam_memo.png'))
+    if gradcam_memo_plus:
+        gradcam_memo_plus.save(os.path.join(os.path.dirname(output_path), f'image_{n_image}/gradcam_memo_plus.png'))
+
+# Example usage
+# Assuming you have the images loaded as PIL Images
+# save_report_image(image, augmentation, segmentation, gradcam_original, gradcam_memo, gradcam_memo_plus, 'output/report.png')
+
+def create_gradcam(image, model, target_layers):
+    input_tensor = transform(Image.fromarray((image * 255).astype(np.uint8))).unsqueeze(0).to(device)
+    
+    cam_algorithm = GradCam(model=model, target_layers=target_layers, 
+                            reshape_transform=reshape_transform)
+    grayscale_cam = cam_algorithm(input_tensor=input_tensor)[0]
+    
+    cam_image = show_cam_on_image(image, grayscale_cam)
+    # cam_image = cv2.cvtColor(cam_image, cv2.COLOR_RGB2BGR)
+
+    return Image.fromarray(cam_image)
+
+
 def main(colab=False):
     # Define paths and directories
     current_dir = os.path.dirname(os.path.abspath(__file__))
     pathDatasetImagenetA = os.path.join(current_dir, "datasets/imagenet-a")
     checkpoint_path = os.path.join(current_dir, "weights/sam_vit_b_01ec64.pth")
-    output_csv_path = os.path.join(current_dir, "Results/test_6_all_dataset_VITB_before_memo_after_segmentation_only_black_background.csv")
+    output_csv_path = os.path.join(current_dir, "Results/test.csv")
     
     # List to store augmentation results
     total_aug = []
@@ -59,6 +151,7 @@ def main(colab=False):
     # Initialize ResNet50 model and save initial weights
     #model = ModelVitb16.to(devsegment_original_cropice)
     model = ModelVitb16().to(device)
+    target_layers = [model.vitb.encoder.layers[-1].ln_1]
     
     initial_weights_path = os.path.join(current_dir, "weights/weights_model_in_use.pth")
     torch.save(model.state_dict(), initial_weights_path)
@@ -94,25 +187,29 @@ def main(colab=False):
         
         # Load an image and its target
         image, target = test_data[i]
+        # print(type(image))
+        # tryn = np.float32(image) / 255
+        # print(type(tryn))
 
         # Test the model before applying MEMO
         correct_before_memo.append(test_model(image=image, target=target, model=model))
 
+        gradcam_initial = create_gradcam(np.float32(image) / 255, model, target_layers)
+
         # Tune the model using MEMO
-        augmentation = tune_model(image=image, model=model, mask_generator=mask_generator, optimizer=optimizer, cost_function=marginal_entropy, num_aug=num_aug, flag_memo_plus=False)
+        augmentation, name_aug = tune_model(image=image, model=model, mask_generator=mask_generator, optimizer=optimizer, cost_function=marginal_entropy, num_aug=num_aug, flag_memo_plus=False)
 
         # Test the model after applying MEMO
         correct_after_memo.append(test_model(image=image, target=target, model=model))
 
-        # model.load_state_dict(torch.load(initial_weights_path))
-        # model.eval()
-
+        gradcam_memo = create_gradcam(np.float32(image) / 255, model, target_layers)
         # Tune the model using MEMO
-        augmentation_plus = tune_model(image=image, model=model, mask_generator=mask_generator, optimizer=optimizer, cost_function=marginal_entropy, num_aug=num_aug, flag_memo_plus=True)
+        segmentation, name_aug_plus = tune_model(image=image, model=model, mask_generator=mask_generator, optimizer=optimizer, cost_function=marginal_entropy, num_aug=num_aug, flag_memo_plus=True)
 
         # Test the model after applying MEMO
         correct_after_memo_plus.append(test_model(image=image, target=target, model=model))
         
+        gradcam_memo_plus = create_gradcam(np.float32(image) / 255, model, target_layers)
 
         # accuracy
         accuracy_before_memo = np.mean(correct_before_memo)*100
@@ -122,12 +219,20 @@ def main(colab=False):
         #accuracy_after_memo = (sum(correct_after_memo)/len(correct_after_memo))*100
 
 
+
         accuracy_classes[f"{target}_before_MEMO"]["prediction"].append(correct_before_memo[i])
         accuracy_classes[f"{target}_after_MEMO"]["prediction"].append(correct_after_memo[i])
         accuracy_classes[f"{target}_after_MEMO_PLUS"]["prediction"].append(correct_after_memo_plus[i])
 
-        accuracy_classes[f"{target}_after_MEMO"]["augmentation"].append(augmentation)
-        accuracy_classes[f"{target}_after_MEMO_PLUS"]["augmentation"].append(augmentation_plus)
+        accuracy_classes[f"{target}_after_MEMO"]["augmentation"].append(name_aug)
+        accuracy_classes[f"{target}_after_MEMO_PLUS"]["augmentation"].append(name_aug_plus)
+
+        # Save the augmentation results
+        # save_report_image(augmentation = augmentation, output_path = os.path.join(current_dir, f"Results/{i}"))
+        save_report_image(image=image, augmentation=augmentation, 
+                          segmentation=segmentation, gradcam_original= gradcam_initial, 
+                          gradcam_memo=gradcam_memo, gradcam_memo_plus=gradcam_memo_plus, 
+                          output_path = os.path.join(current_dir, f"Results/test1"), n_image = i)
         
         # Salvataggio dei dati di accuratezza in un file CSV ogni 100 epoche
         if( i % 100 == 0):

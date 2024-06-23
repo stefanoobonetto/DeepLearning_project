@@ -1,0 +1,5 @@
+Class,Accuracy,Result_for_image,Augmentation_for_image
+0_before_MEMO,7.08,"[(0, 0.14161443710327148)]",[]
+0_after_MEMO,43.47,"[(0, 0.8694241046905518)]","[['Original', 'Horizontal flip', 'Blur', 'Blur', 'Zoom', 'Change gamma', 'Crop', 'Brightness', 'Poisson noise']]"
+0_after_MEMO_PLUS,50.0,"[(0, 0.9999880790710449)]","[['Original', 'Inverse', 'Greyscale', 'Brightness', 'Salt and pepper', 'Scale', 'Affine', 'Affine', 'Brightness']]"
+7.080721855163574,43.47120523452759,49.999403953552246

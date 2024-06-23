@@ -1,22 +1,5 @@
 import cv2
-import torch
 import numpy as np
-from torchvision import models
-import torchvision.transforms as T
-from timm import create_model
-from PIL import Image
-from model import *
-
-device = 'cuda' if torch.cuda.is_available() else 'mps'
-
-mean = [0.485, 0.456, 0.406]
-std = [0.229, 0.224, 0.225]
-
-transformGradCam = T.Compose([
-    T.Resize((224, 224)),
-    T.ToTensor(),
-    T.Normalize(mean, std)
-])
 
 def show_cam_on_image(img: np.ndarray, mask: np.ndarray, colormap: int = cv2.COLORMAP_JET, image_weight: float = 0.5):
     heatmap = cv2.applyColorMap(np.uint8(255 * mask), colormap)
@@ -122,32 +105,3 @@ def reshape_transform(tensor, height=14, width=14):
                                       height, width, tensor.size(2))
     result = result.transpose(2, 3).transpose(1, 2)
     return result
-
-if __name__ == '__main__':
-    # model = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1).to(device).eval()
-    model = ModelVitb16().to(device)
-    print(model)
-    # target_layers = [model.layer4]
-    reshape_transform = reshape_transform
-    # model = create_model('vit_base_patch16_224', pretrained=True).to(device).eval()
-    # print(model)
-    target_layers = [model.vitb.encoder.layers[-1].ln_1]
-    path_img = "/home/disi/pytorch-grad-cam/img.jpg"  # Ensure this path is correct
-
-    rgb_img = cv2.imread(path_img)
-    if rgb_img is None:
-        raise FileNotFoundError(f"Image not found at path: {path_img}")
-
-    rgb_img = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2RGB)
-    rgb_img = cv2.resize(rgb_img, (224, 224))
-    rgb_img = np.float32(rgb_img) / 255
-    input_tensor = transformGradCam(Image.fromarray((rgb_img * 255).astype(np.uint8))).unsqueeze(0).to(device)
-    
-    cam_algorithm = GradCam(model=model, target_layers=target_layers, 
-                            reshape_transform=reshape_transform)
-    grayscale_cam = cam_algorithm(input_tensor=input_tensor)[0]
-    
-    cam_image = show_cam_on_image(rgb_img, grayscale_cam)
-    cam_image = cv2.cvtColor(cam_image, cv2.COLOR_RGB2BGR)
-
-    cv2.imwrite('/home/disi/DeepLearning_project/GRADCAM_output.jpg', cam_image)

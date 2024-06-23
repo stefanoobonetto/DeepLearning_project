@@ -12,8 +12,8 @@ std = [0.229, 0.224, 0.225]
 
 # Prepare data transformations for the train loader
 transform = T.Compose([
-    T.Resize((256, 256)),                                                   # Resize each PIL image to 256 x 256
-    T.RandomCrop((224, 224)),                                               # Randomly crop a 224 x 224 patch
+    T.Resize((224, 224)),                                                   # Resize each PIL image to 256 x 256
+    # T.RandomCrop((224, 224)),                                               # Randomly crop a 224 x 224 patch
     T.ToTensor(),                                                           # Convert Numpy to Pytorch Tensor
     T.Normalize(mean, std)                                                  # Normalize with ImageNet mean
 ])
