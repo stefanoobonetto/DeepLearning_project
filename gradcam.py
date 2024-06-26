@@ -11,6 +11,12 @@ def show_cam_on_image(img: np.ndarray, mask: np.ndarray, colormap: int = cv2.COL
     cam = cam / np.max(cam)
     return np.uint8(255 * cam)
 
+def reshape_transform(tensor, height=14, width=14):
+    result = tensor[:, 1:, :].reshape(tensor.size(0),
+                                      height, width, tensor.size(2))
+    result = result.transpose(2, 3).transpose(1, 2)
+    return result
+
 class ActivationsAndGradients:
     def __init__(self, model, target_layers, reshape_transform=None):
         self.model = model.eval()
@@ -109,8 +115,3 @@ class GradCam:
     def __del__(self):
         self.activations_and_grads.release()
 
-def reshape_transform(tensor, height=14, width=14):
-    result = tensor[:, 1:, :].reshape(tensor.size(0),
-                                      height, width, tensor.size(2))
-    result = result.transpose(2, 3).transpose(1, 2)
-    return result

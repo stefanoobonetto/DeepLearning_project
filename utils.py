@@ -177,7 +177,7 @@ augmentations = [
 
 augmentations_names = [
     "Rotation",
-    "Zoom",
+    "Gaussian blur",#"Zoom",
     "Horizontal flip",
     "Vertical flip",
     "Greyscale",
@@ -435,5 +435,48 @@ def segment_original_blackBG_only_segmentation(aug, mask_generator):
         # segmented_image = np.where(inverse_mask_np[:, :, None], blurred_image_np, image_np)
         # segmented_image_pil = Image.fromarray(segmented_image)
         # ret_images.append(segmented_image_pil)
+
+    return ret_images
+
+
+
+
+def segment_original_blackBG_only_segmentation_andGC(aug, mask_generator, centroid):
+    ret_images = []
+    ret_images.append(aug[0])
+
+    image = aug[0]
+    image_np = np.array(image)
+    masks = mask_generator.generate(image_np)
+
+    min_mask_size = 500  # Puoi regolare questo valore in base alle tue esigenze
+
+    # Filtra le maschere troppo piccole e calcola le aree delle maschere valide
+    filtered_masks = [(i, mask, np.sum(mask["segmentation"])) for i, mask in enumerate(masks) if np.sum(mask["segmentation"]) >= min_mask_size]
+
+    # Ordina le maschere per area in ordine decrescente
+    filtered_masks.sort(key=lambda x: x[2], reverse=True)
+
+    # Tieni solo le prime 3 maschere
+    top_masks = filtered_masks[:10]
+
+    # Draw centroid on the image
+    centroid_x, centroid_y = centroid
+    cv2.circle(image_np, (centroid_x, centroid_y), radius=5, color=(0, 255, 0), thickness=-1)
+    cv2.imwrite('output.jpg', image_np)
+
+
+    
+
+    black_background_np = np.zeros_like(image_np)
+    for i, (original_index, mask, mask_size) in enumerate(top_masks):
+        mask_np = mask["segmentation"]
+
+        # Controlla se il punto centroid è all'interno della maschera
+        if mask_np[centroid[1], centroid[0]]:
+            inverse_mask_np = np.logical_not(mask_np)
+            segmented_image = np.where(inverse_mask_np[:, :, None], black_background_np, image_np)
+            segmented_image_pil = Image.fromarray(segmented_image)
+            ret_images.append(segmented_image_pil)
 
     return ret_images
