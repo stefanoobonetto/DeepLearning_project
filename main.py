@@ -118,34 +118,9 @@ def save_report_image(image=None, augmentation=None, segmentation=None, gradcam_
         gradcam_memo_plus.save(os.path.join(os.path.dirname(output_path), f'image_{n_image}/gradcam_memo_plus.png'))
 
     # Move the output images to the specified path
-    shutil.move('output/report.png', '/path/to/output/folder/report.png')
+    shutil.move('/home/disi/DeepLearning_project/output.jpg', f'/home/disi/DeepLearning_project/Results/test1/image_{n_image}/output.jpg')
     
 
-# Example usage
-# Assuming you have the images loaded as PIL Images
-# save_report_image(image, augmentation, segmentation, gradcam_original, gradcam_memo, gradcam_memo_plus, 'output/report.png')
-
-# def create_gradcam(image, model, target_layers):
-#     input_tensor = transform(Image.fromarray((image * 255).astype(np.uint8))).unsqueeze(0).to(device)
-    
-#     cam_algorithm = GradCam(model=model, target_layers=target_layers, 
-#                             reshape_transform=reshape_transform)
-#     grayscale_cam = cam_algorithm(input_tensor=input_tensor)[0]
-
-#     # # Save the grayscale CAM image
-#     heatmap = (np.uint8(255 * grayscale_cam))
-#     # heatmap = cv2.cvtColor(heatmap, cv2.COLOR_RGB2BGR)
-#     Image.fromarray(heatmap).save(f'grayscale_cam.png')
-#     # print(grayscale_cam.shape)
-#     # print(grayscale_cam)
-#     # for elem in grayscale_cam:
-#     #     print(elem)
-
-    
-#     cam_image = show_cam_on_image(image, grayscale_cam)
-#     # cam_image = cv2.cvtColor(cam_image, cv2.COLOR_RGB2BGR)
-
-#     return Image.fromarray(cam_image)
 
 def create_gradcam(image, model, target_layers):
     input_tensor = transform(Image.fromarray((image * 255).astype(np.uint8))).unsqueeze(0).to(device)
@@ -157,7 +132,7 @@ def create_gradcam(image, model, target_layers):
     heatmap = (np.uint8(255 * grayscale_cam))
 
     # Threshold the heatmap to identify the most important region
-    threshold_value = np.max(heatmap) * 0.8
+    threshold_value = np.max(heatmap) * 1
     important_region = np.where(heatmap >= threshold_value)
 
     # Calculate the centroid of the important region
@@ -165,19 +140,7 @@ def create_gradcam(image, model, target_layers):
     centroid_y = np.mean(important_region[0])
     centroid = (int(centroid_x), int(centroid_y))
 
-    # Create a mask for the important region and color it red
-    # colored_heatmap = np.zeros_like(heatmap)
-    # colored_heatmap = np.stack((colored_heatmap,) * 3, axis=-1)
-    # for y, x in zip(important_region[0], important_region[1]):
-    #     colored_heatmap[y, x] = [255, 0, 0]  # Color the important region in red
-
-    # Blend the original heatmap with the colored important region
-    # blended_heatmap = cv2.addWeighted(cv2.cvtColor(heatmap, cv2.COLOR_GRAY2RGB), 0.5, colored_heatmap, 0.5, 0)
-
-    # Draw the centroid on the blended heatmap
-    # cv2.circle(blended_heatmap, centroid, 5, (0, 255, 0), -1)  # Green circle at the centroid
-
-    # Image.fromarray(blended_heatmap).save('grayscale_cam.png')
+    
 
     cam_image = show_cam_on_image(image, grayscale_cam)
     return Image.fromarray(cam_image), centroid, important_region

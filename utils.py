@@ -441,42 +441,66 @@ def segment_original_blackBG_only_segmentation(aug, mask_generator):
 
 
 
+
 def segment_original_blackBG_only_segmentation_andGC(aug, mask_generator, centroid):
     ret_images = []
-    ret_images.append(aug[0])
-
-    image = aug[0]
-    image_np = np.array(image)
+    original_image = aug[0]
+    ret_images.append(original_image)
+    
+    # Convert and resize image
+    image_np = np.array(original_image)
+    image_np = cv2.resize(image_np, (224, 224))
     masks = mask_generator.generate(image_np)
 
-    min_mask_size = 500  # Puoi regolare questo valore in base alle tue esigenze
+    min_mask_size = 500  # Adjustable minimum mask size
 
-    # Filtra le maschere troppo piccole e calcola le aree delle maschere valide
+    # Filter out small masks and calculate areas of valid masks
     filtered_masks = [(i, mask, np.sum(mask["segmentation"])) for i, mask in enumerate(masks) if np.sum(mask["segmentation"]) >= min_mask_size]
 
-    # Ordina le maschere per area in ordine decrescente
+    # Sort masks by area in descending order
     filtered_masks.sort(key=lambda x: x[2], reverse=True)
 
-    # Tieni solo le prime 3 maschere
+    # Keep only the top 10 masks
     top_masks = filtered_masks[:10]
 
-    # Draw centroid on the image
+    # Draw centroid on the resized image
     centroid_x, centroid_y = centroid
     cv2.circle(image_np, (centroid_x, centroid_y), radius=5, color=(0, 255, 0), thickness=-1)
     cv2.imwrite('output.jpg', image_np)
 
-
-    
-
     black_background_np = np.zeros_like(image_np)
+    mask_found = False
+    closest_mask = None
+    min_distance = float('inf')
+
+    # Process each mask
     for i, (original_index, mask, mask_size) in enumerate(top_masks):
         mask_np = mask["segmentation"]
+        
 
-        # Controlla se il punto centroid è all'interno della maschera
-        if mask_np[centroid[1], centroid[0]]:
+        # Check if the centroid is within the mask
+        if mask_np[centroid_y, centroid_x]:
+            mask_found = True
             inverse_mask_np = np.logical_not(mask_np)
             segmented_image = np.where(inverse_mask_np[:, :, None], black_background_np, image_np)
             segmented_image_pil = Image.fromarray(segmented_image)
             ret_images.append(segmented_image_pil)
+        
+        # Calculate the centroid of the mask
+        mask_indices = np.argwhere(mask_np)
+        if mask_indices.size > 0:
+            mask_centroid = mask_indices.mean(axis=0)
+            distance = np.linalg.norm(np.array([centroid_x, centroid_y]) - mask_centroid)
+            if distance < min_distance:
+                min_distance = distance
+                closest_mask = (original_index, mask_np)
+
+    # If no mask contains the centroid, select the closest and largest mask
+    if not mask_found and closest_mask:
+        _, mask_np = closest_mask
+        inverse_mask_np = np.logical_not(mask_np)
+        segmented_image = np.where(inverse_mask_np[:, :, None], black_background_np, image_np)
+        segmented_image_pil = Image.fromarray(segmented_image)
+        ret_images.append(segmented_image_pil)
 
     return ret_images
