@@ -23,7 +23,7 @@ import shutil
 #     pass
 # else:
 #     ssl._create_default_https_context = _create_unverified_https_context
-#sudo apt install libgl1-mesa-glx
+# sudo apt install libgl1-mesa-glx
 # wget https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth
 # wget https://people.eecs.berkeley.edu/~hendrycks/imagenet-a.tar
 # mkdir -p datasets
@@ -49,7 +49,7 @@ def save_accuracy_to_csv(accuracy_classes, output_path, accuracy_before_memo,acc
 
 
 
-def save_report_image(image=None, augmentation=None, segmentation=None, gradcam_original=None, gradcam_memo=None, gradcam_memo_plus=None, output_path=None, n_image = None):
+def save_report_image(image=None, augmentation=None, segmentation=None, gradcam_original=None, gradcam_memo=None, gradcam_memo_plus=None, output_path=None, n_image = 0):
     # Create directory if it does not exist
     output_path = f"{output_path}/image_{n_image}"
     # print(output_path)
@@ -118,11 +118,12 @@ def save_report_image(image=None, augmentation=None, segmentation=None, gradcam_
         gradcam_memo_plus.save(os.path.join(os.path.dirname(output_path), f'image_{n_image}/gradcam_memo_plus.png'))
 
     # Move the output images to the specified path
-    shutil.move('/home/disi/DeepLearning_project/output.jpg', f'/home/disi/DeepLearning_project/Results/test1/image_{n_image}/output.jpg')
+    shutil.move('/home/sagemaker-user/DeepLearning_project/output.jpg', f'/home/sagemaker-user/DeepLearning_project/Results/test1/image_{n_image}/output.jpg')
     
 
 
 def create_gradcam(image, model, target_layers):
+
     input_tensor = transform(Image.fromarray((image * 255).astype(np.uint8))).unsqueeze(0).to(device)
     
     cam_algorithm = GradCam(model=model, target_layers=target_layers, reshape_transform=reshape_transform)
@@ -131,16 +132,17 @@ def create_gradcam(image, model, target_layers):
     # Save the grayscale CAM image
     heatmap = (np.uint8(255 * grayscale_cam))
 
+    
+
     # Threshold the heatmap to identify the most important region
     threshold_value = np.max(heatmap) * 1
-    important_region = np.where(heatmap >= threshold_value)
+    important_region = np.where(heatmap == threshold_value)
 
     # Calculate the centroid of the important region
     centroid_x = np.mean(important_region[1])
     centroid_y = np.mean(important_region[0])
     centroid = (int(centroid_x), int(centroid_y))
 
-    
 
     cam_image = show_cam_on_image(image, grayscale_cam)
     return Image.fromarray(cam_image), centroid, important_region
@@ -157,7 +159,7 @@ def main(colab=False):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     pathDatasetImagenetA = os.path.join(current_dir, "datasets/imagenet-a")
     checkpoint_path = os.path.join(current_dir, "weights/sam_vit_b_01ec64.pth")
-    output_csv_path = os.path.join(current_dir, "Results/test.csv")
+    output_csv_path = os.path.join(current_dir, "Results/test2.csv")
     
     # List to store augmentation results
     total_aug = []
@@ -169,7 +171,7 @@ def main(colab=False):
     num_aug = 8
 
     # Initialize ResNet50 model and save initial weights
-    #model = ModelVitb16.to(devsegment_original_cropice)
+    # model = ModelVitb16.to(devsegment_original_cropice)
     model = ModelVitb16().to(device)
     target_layers = [model.vitb.encoder.layers[-1].ln_1]
     
@@ -214,15 +216,21 @@ def main(colab=False):
         # Test the model before applying MEMO
         correct_before_memo.append(test_model(image=image, target=target, model=model))
 
-        gradcam_initial, _,_ = create_gradcam(np.float32(image) / 255, model, target_layers)
+        gradcam_initial, centroid, regions = create_gradcam(np.float32(image) / 255, model, target_layers)
 
         # Tune the model using MEMO
-        augmentation, name_aug = tune_model(image=image, model=model, mask_generator=mask_generator, optimizer=optimizer, cost_function=marginal_entropy, num_aug=num_aug, flag_memo_plus=False)
+        augmentation, name_aug = tune_model(image=image, model=model, mask_generator=mask_generator, optimizer=optimizer, cost_function=marginal_entropy, num_aug=num_aug, flag_memo_plus=False, centroid=centroid)
 
         # Test the model after applying MEMO
         correct_after_memo.append(test_model(image=image, target=target, model=model))
 
         gradcam_memo, centroid, regions= create_gradcam(np.float32(image) / 255, model, target_layers)
+
+
+        # Reset model to initial weights before each iteration
+        # model.load_state_dict(torch.load(initial_weights_path))
+        # model.eval()
+        
         # Tune the model using MEMO
         segmentation, name_aug_plus = tune_model(image=image, model=model, mask_generator=mask_generator, optimizer=optimizer, cost_function=marginal_entropy, num_aug=num_aug, flag_memo_plus=True, centroid=centroid)
 
@@ -258,7 +266,7 @@ def main(colab=False):
                           output_path = os.path.join(current_dir, f"Results/test1"), n_image = i)
         
         # Salvataggio dei dati di accuratezza in un file CSV ogni 100 epoche
-        if( i % 1 == 0):
+        if( i % 50 == 0):
             save_accuracy_to_csv(accuracy_classes, output_csv_path, accuracy_before_memo,accuracy_after_memo,accuracy_after_memo_plus)
 
         # Update progress bar with current accuracy

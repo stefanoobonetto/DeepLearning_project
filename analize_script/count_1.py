@@ -1,6 +1,6 @@
 import csv
 
-filename = "/home/disi/DeepLearning_project/Results/test.csv"
+filename = "/home/sagemaker-user/DeepLearning_project/Results/test2.csv"
 
 
 count_before = 0

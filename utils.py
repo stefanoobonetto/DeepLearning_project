@@ -18,7 +18,6 @@ transform = T.Compose([
     T.Normalize(mean, std)                                                  # Normalize with ImageNet mean
 ])
 
-
 def get_dataset(batch_size, img_root, num_workers=2):
     # Load data
     imagnet_dataset_4test = torchvision.datasets.ImageFolder(root=img_root, transform=transform)
@@ -29,7 +28,7 @@ def get_dataset(batch_size, img_root, num_workers=2):
 
     return test_loader_4test, imagnet_dataset_4memo
 
-def apply_augmentations(img, num_aug):
+def apply_augmentations(img, num_aug, centroid):
     ret_images = []
     ret_names = []
 
@@ -45,8 +44,11 @@ def apply_augmentations(img, num_aug):
         n = random.randint(0, len(augmentations)-1)
 
         # Apply augmentation
-        img_aug_np = augmentations[n](img_np)
-
+        if augmentations_names[n] == "Crop":
+            img_aug_np = augmentations[n](img_np, center=centroid)
+        else:
+            img_aug_np = augmentations[n](img_np)
+        
         # Convert NumPy array back to PIL image
         img_aug = Image.fromarray(img_aug_np)
 
@@ -55,19 +57,21 @@ def apply_augmentations(img, num_aug):
 
     return ret_images, ret_names
 
-def rotation(image, angle_range=(-10, 10)):
+def rotation(image,  angle_range=(-10, 10)):
     angle = np.random.uniform(angle_range[0], angle_range[1])
     rows, cols = image.shape[:2]
     M = cv2.getRotationMatrix2D((cols / 2, rows / 2), angle, 1)
     rotated_image = cv2.warpAffine(image, M, (cols, rows))
     return rotated_image
 
-def zoom(image, scale_range=(0.8, 1.2)):
+def zoom(image, scale_range=(0.5, 1.5)):
     scale_factor = np.random.uniform(scale_range[0], scale_range[1])
     height, width = image.shape[:2]
     center = (width / 2, height / 2)
+
     M = cv2.getRotationMatrix2D(center, 0, scale_factor)
     zoomed_image = cv2.warpAffine(image, M, (width, height))
+
     return zoomed_image
 
 def flip_horizontal(image):
@@ -86,8 +90,43 @@ def inverse(image):
 def blur(image, kernel_size=(5, 5)):
     return cv2.GaussianBlur(image, kernel_size, 0)
 
-def crop(image, crop_size=(100, 100)):
-    return image[:crop_size[0], :crop_size[1]]
+
+def crop(image, crop_size=(160, 160), center=None):
+
+    height, width = image.shape[:2]
+    crop_height, crop_width = crop_size
+    
+    # Se il centro non è specificato, usa il centro dell'immagine
+    if center is None:
+        center = (height // 2, width // 2)
+        print("no center")
+
+    centroid_x, centroid_y = center
+    centroid_resized = (int(centroid_x * image.shape[1] / 224), int(centroid_y * image.shape[0] / 224))
+    
+    center_x, center_y = centroid_resized
+
+    # Calcola i bordi del ritaglio
+    y1 = max(0, center_y - crop_height // 2)
+    y2 = min(height, center_y + crop_height // 2)
+    x1 = max(0, center_x - crop_width // 2)
+    x2 = min(width, center_x + crop_width // 2)
+    
+    # Assicurati che il ritaglio sia della dimensione desiderata
+    if y2 - y1 < crop_height:
+        if y1 == 0:
+            y2 = min(height, y1 + crop_height)
+        else:
+            y1 = max(0, y2 - crop_height)
+    
+    if x2 - x1 < crop_width:
+        if x1 == 0:
+            x2 = min(width, x1 + crop_width)
+        else:
+            x1 = max(0, x2 - crop_width)
+    
+    
+    return image[y1:y2, x1:x2]
 
 def affine(image, pts1=None, pts2=None):
     rows, cols = image.shape[:2]  # Get the dimensions of the input image
@@ -177,7 +216,7 @@ augmentations = [
 
 augmentations_names = [
     "Rotation",
-    "Gaussian blur",#"Zoom",
+    "Zoom",
     "Horizontal flip",
     "Vertical flip",
     "Greyscale",
@@ -449,7 +488,6 @@ def segment_original_blackBG_only_segmentation_andGC(aug, mask_generator, centro
     
     # Convert and resize image
     image_np = np.array(original_image)
-    image_np = cv2.resize(image_np, (224, 224))
     masks = mask_generator.generate(image_np)
 
     min_mask_size = 500  # Adjustable minimum mask size
@@ -465,8 +503,9 @@ def segment_original_blackBG_only_segmentation_andGC(aug, mask_generator, centro
 
     # Draw centroid on the resized image
     centroid_x, centroid_y = centroid
-    cv2.circle(image_np, (centroid_x, centroid_y), radius=5, color=(0, 255, 0), thickness=-1)
-    cv2.imwrite('output.jpg', image_np)
+    centroid_resized = (int(centroid_x * image_np.shape[1] / 224), int(centroid_y * image_np.shape[0] / 224))
+    cv2.circle(image_np, centroid_resized, radius=5, color=(0, 255, 0), thickness=-1)
+    cv2.imwrite('/home/sagemaker-user/DeepLearning_project/output.jpg', image_np)
 
     black_background_np = np.zeros_like(image_np)
     mask_found = False
@@ -477,9 +516,8 @@ def segment_original_blackBG_only_segmentation_andGC(aug, mask_generator, centro
     for i, (original_index, mask, mask_size) in enumerate(top_masks):
         mask_np = mask["segmentation"]
         
-
         # Check if the centroid is within the mask
-        if mask_np[centroid_y, centroid_x]:
+        if mask_np[centroid_resized[1], centroid_resized[0]]:
             mask_found = True
             inverse_mask_np = np.logical_not(mask_np)
             segmented_image = np.where(inverse_mask_np[:, :, None], black_background_np, image_np)
@@ -490,7 +528,7 @@ def segment_original_blackBG_only_segmentation_andGC(aug, mask_generator, centro
         mask_indices = np.argwhere(mask_np)
         if mask_indices.size > 0:
             mask_centroid = mask_indices.mean(axis=0)
-            distance = np.linalg.norm(np.array([centroid_x, centroid_y]) - mask_centroid)
+            distance = np.linalg.norm(np.array(centroid_resized) - mask_centroid)
             if distance < min_distance:
                 min_distance = distance
                 closest_mask = (original_index, mask_np)
