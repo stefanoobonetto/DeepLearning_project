@@ -5,6 +5,7 @@ import os
 def save_image(image, name):
     path = "/Users/simoneroman/Desktop/DL/DeepLearning_project/images_aug/"
     image_np = np.array(image)
+    image_np = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
     cv2.imwrite(path + name + ".jpg", image_np)
 
 
