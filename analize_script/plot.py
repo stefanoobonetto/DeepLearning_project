@@ -1,5 +1,6 @@
 import csv
 import matplotlib.pyplot as plt
+import numpy as np
 
 def leggi_csv(file_path):
     """
@@ -26,9 +27,10 @@ dati_after_MEMO = []
 dati_after_MEMO_PLUS = []
 
 for index, riga in enumerate(dati):
-    if index != 0 and index != len(dati) - 1:
+
+    if index != len(dati) - 1:
         split_name = riga['Class'].split('_')
-        print(split_name)
+        # print(split_name)
         if split_name[1] == "before":
       
             data = eval(riga['Result_for_image'])
@@ -54,26 +56,38 @@ for index, riga in enumerate(dati):
                 accuracy = (tot_correct/len(data))*100
                 dati_after_MEMO.append(accuracy)
 
+print(len(dati))
+print(len(dati_before_MEMO))
+print(len(dati_after_MEMO))
 
 
-# Creazione del plot
-plt.figure(figsize=(10, 6))
+# Impostazioni per il grafico
+num_plots = 4
+elements_per_plot = 50
 
-# Assumendo che i dati siano ordinati per classe o in ordine temporale
-plt.plot(dati_before_MEMO, label='Before MEMO', marker='o')
-plt.plot(dati_after_MEMO, label='After MEMO', marker='o')
+# Creazione dei subplots
+fig, axs = plt.subplots(num_plots, 1, figsize=(10, 20))
 
-# Aggiungere etichette e titolo
-plt.xlabel('Class')
-plt.ylabel('Accuracy')
-plt.title('Accuracy Before and After MEMO')
-plt.legend()
+for i in range(num_plots):
+    start_index = i * elements_per_plot
+    end_index = start_index + elements_per_plot
+    index = np.arange(start_index, end_index)
+    
+    # Linea per la Serie A
+    axs[i].plot(index, dati_before_MEMO[start_index:end_index], marker='o', label='Serie A')
+    # Linea per la Serie B
+    axs[i].plot(index, dati_after_MEMO[start_index:end_index], marker='x', label='Serie B')
+    
+    axs[i].set_title(f'Elementi {start_index + 1} a {end_index}')
+    axs[i].set_xlabel('Indice Elemento')
+    axs[i].set_ylabel('Valore')
+    axs[i].legend()
 
-# Salva il grafico in un file
-output_path = '/home/sagemaker-user/DeepLearning_project/analize_script/try.jpg'
+# Ajustar l'layout per evitare sovrapposizioni
+plt.tight_layout()
+
+# Mostra il grafico
+
+# Save the plot to a file
+output_path = '/home/sagemaker-user/DeepLearning_project/analize_script/stacked_bar_chart.pdf'
 plt.savefig(output_path)
-
-# Mostrare il grafico
-plt.show()
-
-print(f"Il grafico è stato salvato in {output_path}")

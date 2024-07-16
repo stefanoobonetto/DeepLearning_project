@@ -1,6 +1,6 @@
 import csv
 
-filename = "/home/sagemaker-user/DeepLearning_project/Results/test2.csv"
+filename = "/home/sagemaker-user/DeepLearning_project/Results/test_15_07_ONLY_MEMO.csv"
 
 
 count_before = 0
@@ -56,9 +56,9 @@ for before, after, after_plus in zip(elem_before, elem_after, elem_after_plus):
 
 
 
-print(f"Count before: {count_before}")
-print(f"Count after: {count_after}")
-print(f"Count after plus: {count_after_plus}")
+print(f"Count before: {count_before}  Accuracy: {count_before/7500*100}")
+print(f"Count after: {count_after}. Accuracy: {count_after/7500*100}")
+print(f"Count after plus: {count_after_plus}. Accuracy: {count_after_plus/7500*100}")
 
 print(f"MEMO-> before correct after wrong : {before_correct_memo} - before wrong after correct : {after_correct_memo}")
 print(f"PLUS-> before correct after wrong : {before_correct_plus} - before wrong after correct : {after_correct_plus}")

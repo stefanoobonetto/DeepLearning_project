@@ -18,7 +18,7 @@ transform = T.Compose([
     T.Normalize(mean, std)                                                  # Normalize with ImageNet mean
 ])
 
-def get_dataset(batch_size, img_root, num_workers=2):
+def get_WholeDataset(batch_size, img_root, num_workers=2):
     # Load data
     imagnet_dataset_4test = torchvision.datasets.ImageFolder(root=img_root, transform=transform)
     imagnet_dataset_4memo = torchvision.datasets.ImageFolder(root=img_root)
@@ -28,6 +28,26 @@ def get_dataset(batch_size, img_root, num_workers=2):
 
     return test_loader_4test, imagnet_dataset_4memo
 
+def get_SubDataset(batch_size, img_root, subset_size, random_seed, num_workers=2):
+
+    # Set the random seed for reproducibility
+    torch.manual_seed(random_seed)
+    np.random.seed(random_seed)
+
+    # Load the full dataset
+    imagnet_dataset = torchvision.datasets.ImageFolder(root=img_root)
+
+    indices = np.random.choice(len(imagnet_dataset), size=subset_size, replace=False)
+    imagnet_subset = torch.utils.data.Subset(imagnet_dataset, indices)
+
+    # Initialize dataloader
+    test_loader = torch.utils.data.DataLoader(imagnet_subset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+
+    # print("full dataset: ", len(imagnet_dataset))
+    # print("subset dataset: ", len(imagnet_subset))  
+
+    return test_loader, imagnet_subset
+
 def apply_augmentations(img, num_aug, centroid):
     ret_images = []
     ret_names = []
@@ -35,27 +55,35 @@ def apply_augmentations(img, num_aug, centroid):
     ret_images.append(img)
     ret_names.append("Original")
 
-    for i in range(num_aug):
-        img_copy = img.copy()
+    applied_augmentations = set()
 
-        # Convert PIL image to NumPy array
+    while len(ret_images) - 1 < num_aug:  # Exclude original image from count
+        img_copy = img.copy()
         img_np = np.array(img_copy)
 
-        n = random.randint(0, len(augmentations)-1)
+        n = random.randint(0, len(augmentations) - 1)
+        aug_name = augmentations_names[n]
 
-        # Apply augmentation
-        if augmentations_names[n] == "Crop":
-            img_aug_np = augmentations[n](img_np, center=centroid)
-        else:
-            img_aug_np = augmentations[n](img_np)
-        
-        # Convert NumPy array back to PIL image
-        img_aug = Image.fromarray(img_aug_np)
+        # Check if the augmentation has been applied before
+        if aug_name not in applied_augmentations:
+            applied_augmentations.add(aug_name)
 
-        ret_images.append(img_aug)
-        ret_names.append(augmentations_names[n])
+            # Apply augmentation
+            if aug_name == "Crop":
+                img_aug_np = augmentations[n](img_np, center=centroid)
+            else:
+                img_aug_np = augmentations[n](img_np)
+
+            # Convert NumPy array back to PIL image
+            img_aug = Image.fromarray(img_aug_np)
+
+            ret_images.append(img_aug)
+            ret_names.append(aug_name)
+
+    # print("aug_applied: ", ret_names)
 
     return ret_images, ret_names
+
 
 def rotation(image,  angle_range=(-10, 10)):
     angle = np.random.uniform(angle_range[0], angle_range[1])
@@ -505,7 +533,7 @@ def segment_original_blackBG_only_segmentation_andGC(aug, mask_generator, centro
     centroid_x, centroid_y = centroid
     centroid_resized = (int(centroid_x * image_np.shape[1] / 224), int(centroid_y * image_np.shape[0] / 224))
     cv2.circle(image_np, centroid_resized, radius=5, color=(0, 255, 0), thickness=-1)
-    cv2.imwrite('/home/sagemaker-user/DeepLearning_project/output.jpg', image_np)
+    # cv2.imwrite('/home/sagemaker-user/DeepLearning_project/output.jpg', image_np)
 
     black_background_np = np.zeros_like(image_np)
     mask_found = False
@@ -541,4 +569,81 @@ def segment_original_blackBG_only_segmentation_andGC(aug, mask_generator, centro
         segmented_image_pil = Image.fromarray(segmented_image)
         ret_images.append(segmented_image_pil)
 
+    return ret_images
+
+def segment_original_blackBG_only_segmentation_and_GC_bBOX(aug, mask_generator, centroid):
+    ret_images = []
+    original_image = aug[0]
+    ret_images.append(original_image)
+    
+    # Convert and resize image
+    image_np = np.array(original_image)
+    masks = mask_generator.generate(image_np)
+
+    min_mask_size = 500  # Adjustable minimum mask size
+
+    # Filter out small masks and calculate areas of valid masks
+    filtered_masks = [(i, mask, np.sum(mask["segmentation"])) for i, mask in enumerate(masks) if np.sum(mask["segmentation"]) >= min_mask_size]
+
+    # Sort masks by area in descending order
+    filtered_masks.sort(key=lambda x: x[2], reverse=True)
+
+    # Keep only the top 10 masks
+    top_masks = filtered_masks[:10]
+    
+    black_background_np = np.zeros_like(image_np)
+
+    # Draw centroid on the resized image
+    centroid_x, centroid_y = centroid
+    centroid_resized = (int(centroid_x * image_np.shape[0] / 224), int(centroid_y * image_np.shape[1] / 224))
+    copy = image_np
+    cv2.circle(copy, centroid_resized, radius=5, color=(0, 255, 0), thickness=-1)
+    cv2.imwrite('/home/sagemaker-user/DeepLearning_project/output.jpg', copy)
+
+    mask_found = False
+    closest_mask = None
+    min_distance = float('inf')
+    finded_masks = []
+
+    # Process each mask
+    for i, (original_index, mask, mask_size) in enumerate(top_masks):
+        mask_np = mask["segmentation"]
+        
+        # Check if the centroid is within the mask
+        if mask_np[centroid_resized[0], centroid_resized[1]]:
+            mask_found = True
+            finded_masks.append(mask_np)
+        
+        # Calculate the centroid of the mask
+        mask_indices = np.argwhere(mask_np)
+        if mask_indices.size > 0:
+            mask_centroid = mask_indices.mean(axis=0)
+            distance = np.linalg.norm(np.array(centroid_resized) - mask_centroid)
+            if distance < min_distance:
+                min_distance = distance
+                closest_mask = (original_index, mask_np)
+
+    # If no mask contains the centroid, select the closest and largest mask
+    if not mask_found and closest_mask:
+        _, mask_np = closest_mask
+        finded_masks.append(mask_np)
+    
+    for i, elem in enumerate(finded_masks):
+        mask_np = np.array(elem)
+        
+        # Find the bounding rectangle for the mask
+        mask_indices = np.argwhere(mask_np)
+        if mask_indices.size > 0:
+            y_min, x_min = mask_indices.min(axis=0)
+            y_max, x_max = mask_indices.max(axis=0)
+            
+            # Create an empty black background
+            black_background_np = np.zeros_like(image_np)
+            
+            # Copy the content of the bounding box from the original image
+            black_background_np[y_min:y_max+1, x_min:x_max+1] = image_np[y_min:y_max+1, x_min:x_max+1]
+            
+            # Convert to PIL Image and append to ret_images
+            ret_images.append(Image.fromarray(black_background_np))
+    
     return ret_images

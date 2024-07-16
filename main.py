@@ -26,10 +26,13 @@ import shutil
 # sudo apt install libgl1-mesa-glx
 # wget https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth
 # wget https://people.eecs.berkeley.edu/~hendrycks/imagenet-a.tar
+# wget http://image-net.org/data/imagenet_v2/matched-frequency.zip
+
 # mkdir -p datasets
 # tar -xf imagenet-a.tar -C datasets
 
 device = torch.device("cuda" if torch.cuda.is_available() else "mps")
+
 
 # Funzione per salvare i dati di accuratezza in un file CSV
 def save_accuracy_to_csv(accuracy_classes, output_path, accuracy_before_memo,accuracy_after_memo,accuracy_after_memo_plus):
@@ -40,8 +43,9 @@ def save_accuracy_to_csv(accuracy_classes, output_path, accuracy_before_memo,acc
         writer.writerow(["Class", "Accuracy", "Result_for_image", "Augmentation_for_image" ])
         for elem in accuracy_classes:
             if len(accuracy_classes[elem]["prediction"]) > 0:
-                # accuracy = round((sum(accuracy_classes[elem]["prediction"]) / len(accuracy_classes[elem]["prediction"])) * 100, 2)
-                accuracy = round(np.mean(accuracy_classes[elem]["prediction"])*100, 2)
+               
+                accuracy = round((sum(accuracy_classes[elem]["prediction"][0]) / len(accuracy_classes[elem]["prediction"])) * 100, 2)
+                # accuracy = round(np.mean(accuracy_classes[elem]["prediction"])*100, 2)
                 writer.writerow([elem, accuracy,accuracy_classes[elem]['prediction'],accuracy_classes[elem]['augmentation']])
                 
         writer.writerow([accuracy_before_memo, accuracy_after_memo, accuracy_after_memo_plus])
@@ -158,15 +162,22 @@ def main(colab=False):
     # Define paths and directories
     current_dir = os.path.dirname(os.path.abspath(__file__))
     pathDatasetImagenetA = os.path.join(current_dir, "datasets/imagenet-a")
+    pathDatasetImagenrtV2 = os.path.join(current_dir, "datasets/imagenetv2-matched-frequency-format-val")
     checkpoint_path = os.path.join(current_dir, "weights/sam_vit_b_01ec64.pth")
-    output_csv_path = os.path.join(current_dir, "Results/test2.csv")
+    output_csv_path = os.path.join(current_dir, "test_16_07_ONLY_MEMO_PLUS.csv")
     
-    # List to store augmentation results
-    total_aug = []
+
+    N_IMAGES = 250
+    RANDOM_SEED = 100
 
     # Load dataset
-    _, test_data = get_dataset(batch_size=1, img_root=pathDatasetImagenetA)
+    _, test_data = get_WholeDataset(batch_size=1, img_root=pathDatasetImagenetA)
+    # _, test_data = get_WholeDataset(batch_size=1, img_root=pathDatasetImagenrtV2)
+    # _, test_data = get_SubDataset(batch_size=1, img_root=pathDatasetImagenetA, subset_size=N_IMAGES, random_seed=RANDOM_SEED)
 
+
+    # List to store augmentation results
+    total_aug = []
     # Number of augmentations
     num_aug = 8
 
@@ -207,8 +218,12 @@ def main(colab=False):
         model.load_state_dict(torch.load(initial_weights_path))
         model.eval()
         
+        
         # Load an image and its target
         image, target = test_data[i]
+        # print(target)
+
+        
         # print(type(image))
         # tryn = np.float32(image) / 255
         # print(type(tryn))
@@ -218,13 +233,13 @@ def main(colab=False):
 
         gradcam_initial, centroid, regions = create_gradcam(np.float32(image) / 255, model, target_layers)
 
-        # Tune the model using MEMO
-        augmentation, name_aug = tune_model(image=image, model=model, mask_generator=mask_generator, optimizer=optimizer, cost_function=marginal_entropy, num_aug=num_aug, flag_memo_plus=False, centroid=centroid)
+        # # Tune the model using MEMO
+        # augmentation, name_aug = tune_model(image=image, model=model, mask_generator=mask_generator, optimizer=optimizer, cost_function=marginal_entropy, num_aug=num_aug, flag_memo_plus=False, centroid=centroid)
 
-        # Test the model after applying MEMO
-        correct_after_memo.append(test_model(image=image, target=target, model=model))
+        # # Test the model after applying MEMO
+        # correct_after_memo.append(test_model(image=image, target=target, model=model))
 
-        gradcam_memo, centroid, regions= create_gradcam(np.float32(image) / 255, model, target_layers)
+        # gradcam_memo, centroid, regions= create_gradcam(np.float32(image) / 255, model, target_layers)
 
 
         # Reset model to initial weights before each iteration
@@ -239,35 +254,37 @@ def main(colab=False):
         
         gradcam_memo_plus,_,_ = create_gradcam(np.float32(image) / 255, model, target_layers)
 
-        # accuracy
-        accuracy_before_memo = np.mean(correct_before_memo)*100
-        accuracy_after_memo = np.mean(correct_after_memo)*100
-        accuracy_after_memo_plus = np.mean(correct_after_memo_plus)*100
+        # # accuracy
+        # accuracy_before_memo = np.mean(correct_before_memo)*100
+        # accuracy_after_memo = np.mean(correct_after_memo)*100
+        # accuracy_after_memo_plus = np.mean(correct_after_memo_plus)*100
 
 
         accuracy_before_memo = (summation(correct_before_memo)/len(correct_before_memo))*100
-        accuracy_after_memo = (summation(correct_after_memo)/len(correct_after_memo))*100
-        accuracy_after_memo_plus = (summation(correct_after_memo_plus)/len(correct_after_memo))*100
+        accuracy_after_memo = (summation(correct_after_memo)/len(correct_after_memo_plus))*100
+        accuracy_after_memo_plus = (summation(correct_after_memo_plus)/len(correct_after_memo_plus))*100
 
 
 
         accuracy_classes[f"{target}_before_MEMO"]["prediction"].append(correct_before_memo[i])
-        accuracy_classes[f"{target}_after_MEMO"]["prediction"].append(correct_after_memo[i])
-        accuracy_classes[f"{target}_after_MEMO_PLUS"]["prediction"].append(correct_after_memo_plus[i])
+        accuracy_classes[f"{target}_after_MEMO"]["prediction"].append(correct_after_memo_plus[i])
+        accuracy_classes[f"{target}_after_MEMO_PLUS"]["prediction"].append(correct_after_memo_plus[i])          #!!!!!!!! da cambiare se vuoi usare memo plus !!!!!!!!!!
+        # accuracy_classes[f"{target}_after_MEMO_PLUS"]["prediction"].append(correct_after_memo_plus[i])
 
-        accuracy_classes[f"{target}_after_MEMO"]["augmentation"].append(name_aug)
+        accuracy_classes[f"{target}_after_MEMO"]["augmentation"].append(name_aug_plus)
         accuracy_classes[f"{target}_after_MEMO_PLUS"]["augmentation"].append(name_aug_plus)
+        # accuracy_classes[f"{target}_after_MEMO_PLUS"]["augmentation"].append(name_aug_plus)
 
-        # Save the augmentation results
-        # save_report_image(augmentation = augmentation, output_path = os.path.join(current_dir, f"Results/{i}"))
-        save_report_image(image=image, augmentation=augmentation, 
-                          segmentation=segmentation, gradcam_original= gradcam_initial, 
-                          gradcam_memo=gradcam_memo, gradcam_memo_plus=gradcam_memo_plus, 
-                          output_path = os.path.join(current_dir, f"Results/test1"), n_image = i)
+        # # Save the augmentation results
+        # # save_report_image(augmentation = augmentation, output_path = os.path.join(current_dir, f"Results/{i}"))
+        # save_report_image(image=image, augmentation=augmentation, 
+        #                   segmentation=segmentation, gradcam_original= gradcam_initial, 
+        #                   gradcam_memo=gradcam_memo, gradcam_memo_plus=gradcam_memo_plus, 
+        #                   output_path = os.path.join(current_dir, f"Results/test1"), n_image = i)
         
-        # Salvataggio dei dati di accuratezza in un file CSV ogni 100 epoche
-        if( i % 50 == 0):
-            save_accuracy_to_csv(accuracy_classes, output_csv_path, accuracy_before_memo,accuracy_after_memo,accuracy_after_memo_plus)
+        # # Salvataggio dei dati di accuratezza in un file CSV ogni 100 epoche
+        # if( i % 50 == 0):
+        save_accuracy_to_csv(accuracy_classes, output_csv_path, accuracy_before_memo,accuracy_after_memo,accuracy_after_memo_plus)
 
         # Update progress bar with current accuracy
         pbar.set_description(f'Before MEMO: {accuracy_before_memo:.2f}%  after MEMO: {accuracy_after_memo:.2f}% after MEMO_PLUS: {accuracy_after_memo_plus:.2f}%')
