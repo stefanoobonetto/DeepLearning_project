@@ -81,7 +81,6 @@ def apply_augmentations(img, num_aug, centroid):
             ret_names.append(aug_name)
 
     # print("aug_applied: ", ret_names)
-
     return ret_images, ret_names
 
 
