@@ -80,7 +80,7 @@ for i in range(num_plots):
     
     axs[i].set_title(f'Elementi {start_index + 1} a {end_index}')
     axs[i].set_xlabel('Indice Elemento')
-    axs[i].set_ylabel('Valore')
+    axs[i].set_ylabel('Value')
     axs[i].legend()
 
 # Ajustar l'layout per evitare sovrapposizioni
