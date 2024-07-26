@@ -1,0 +1,5 @@
+Class,Accuracy,Result_for_image,Augmentation_for_image
+0_before_MEMO,14.16,"[(0, 0.14161436259746552)]",[]
+0_after_MEMO,100.0,"[(0, 0.9999681711196899)]","[['Original', 'Blur', 'Change gamma', 'Speckle noise', 'Crop', 'Rotation', 'Affine', 'Contrast', 'Horizontal flip']]"
+0_after_MEMO_PLUS,100.0,"[(0, 0.9999681711196899)]","[['Original', 'Blur', 'Change gamma', 'Speckle noise', 'Crop', 'Rotation', 'Affine', 'Contrast', 'Horizontal flip']]"
+0.0,0.0,0.0

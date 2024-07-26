@@ -1,11 +1,13 @@
 import cv2
 import torch
+import copy
 import random
 import torchvision
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image, ImageFilter
 import torchvision.transforms as T
+from scipy.ndimage import gaussian_filter, map_coordinates
 
 mean = [0.485, 0.456, 0.406]
 std = [0.229, 0.224, 0.225]
@@ -81,9 +83,7 @@ def apply_augmentations(img, num_aug, centroid):
             ret_names.append(aug_name)
 
     # print("aug_applied: ", ret_names)
-
     return ret_images, ret_names
-
 
 def rotation(image,  angle_range=(-10, 10)):
     angle = np.random.uniform(angle_range[0], angle_range[1])
@@ -115,49 +115,44 @@ def greyscale(image):
 def inverse(image):
     return cv2.bitwise_not(image)
 
-def blur(image, kernel_size=(5, 5)):
-    return cv2.GaussianBlur(image, kernel_size, 0)
-
+def blur(image, kernel_size=(20, 20)):
+    return cv2.blur(image, kernel_size)
 
 def crop(image, crop_size=(160, 160), center=None):
 
     height, width = image.shape[:2]
     crop_height, crop_width = crop_size
-    
-    # Se il centro non è specificato, usa il centro dell'immagine
+
     if center is None:
         center = (height // 2, width // 2)
-        print("no center")
 
     centroid_x, centroid_y = center
     centroid_resized = (int(centroid_x * image.shape[1] / 224), int(centroid_y * image.shape[0] / 224))
-    
+
     center_x, center_y = centroid_resized
 
-    # Calcola i bordi del ritaglio
     y1 = max(0, center_y - crop_height // 2)
     y2 = min(height, center_y + crop_height // 2)
     x1 = max(0, center_x - crop_width // 2)
     x2 = min(width, center_x + crop_width // 2)
-    
-    # Assicurati che il ritaglio sia della dimensione desiderata
+
     if y2 - y1 < crop_height:
         if y1 == 0:
             y2 = min(height, y1 + crop_height)
         else:
             y1 = max(0, y2 - crop_height)
-    
+
     if x2 - x1 < crop_width:
         if x1 == 0:
             x2 = min(width, x1 + crop_width)
         else:
             x1 = max(0, x2 - crop_width)
-    
-    
+
+
     return image[y1:y2, x1:x2]
 
 def affine(image, pts1=None, pts2=None):
-    rows, cols = image.shape[:2]  # Get the dimensions of the input image
+    rows, cols = image.shape[:2]
     if pts1 is None:
         pts1 = np.float32([[50,50],[200,50],[50,200]])
     if pts2 is None:
@@ -171,19 +166,41 @@ def change_gamma(image, gamma_range=(0.5, 2.0)):
     table = np.array([((i / 255.0) ** inv_gamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
     return cv2.LUT(image, table)
 
-def translation(image, shift_range=(-10, 10)):
+def translation(image, shift_range=(-100, 100)):
     x_shift = np.random.randint(shift_range[0], shift_range[1])
     y_shift = np.random.randint(shift_range[0], shift_range[1])
     rows, cols = image.shape[:2]
     M = np.float32([[1, 0, x_shift], [0, 1, y_shift]])
     return cv2.warpAffine(image, M, (cols, rows))
 
-def scale(image, scale_factor_range=(0.5, 1.5)):
-    scale_factor = np.random.uniform(scale_factor_range[0], scale_factor_range[1])
-    height, width = image.shape[:2]
-    scaled_height, scaled_width = int(height * scale_factor), int(width * scale_factor)
-    scaled_image = cv2.resize(image, (scaled_width, scaled_height))
-    return scaled_image
+def elastic_transform(image, alpha = 1000, sigma = 20, alpha_affine = 20, random_state=None):
+    if random_state is None:
+        random_state = np.random.RandomState(None)
+
+    shape = image.shape
+    shape_size = shape[:2]
+    
+    # Random affine
+    center_square = np.float32(shape_size) // 2
+    square_size = min(shape_size) // 3
+    pts1 = np.float32([center_square + square_size, 
+                       [center_square[0]+square_size, center_square[1]-square_size], 
+                       center_square - square_size])
+    pts2 = pts1 + random_state.uniform(-alpha_affine, alpha_affine, size=pts1.shape).astype(np.float32)
+    M = cv2.getAffineTransform(pts1, pts2)
+    image = cv2.warpAffine(image, M, shape_size[::-1], borderMode=cv2.BORDER_REFLECT_101)
+
+    dx = gaussian_filter((random_state.rand(*shape[:2]) * 2 - 1), sigma) * alpha
+    dy = gaussian_filter((random_state.rand(*shape[:2]) * 2 - 1), sigma) * alpha
+
+    x, y = np.meshgrid(np.arange(shape[1]), np.arange(shape[0]))
+    indices = np.reshape(y + dy, (-1, 1)), np.reshape(x + dx, (-1, 1))
+
+    distorted_image = np.empty_like(image)
+    for i in range(shape[2]):
+        distorted_image[..., i] = map_coordinates(image[..., i], indices, order=1, mode='reflect').reshape(shape[:2])
+    
+    return distorted_image
 
 def brightness(image, brightness_range=(-50, 50)):
     brightness_value = np.random.randint(brightness_range[0], brightness_range[1])
@@ -204,7 +221,7 @@ def salt_e_pepper(image, amount=0.01):
     noisy_image[pepper] = 0
     return noisy_image
 
-def gaussian_blur(image, kernel_size=(5, 5), sigma=0):
+def gaussian_blur(image, kernel_size=(25, 25), sigma=0):
     return cv2.GaussianBlur(image, kernel_size, sigma)
 
 def poisson_noise(image):
@@ -232,7 +249,7 @@ augmentations = [
     affine,
     change_gamma,
     translation,
-    scale,
+    elastic_transform,
     brightness,
     histogram_eq,
     salt_e_pepper,
@@ -254,7 +271,7 @@ augmentations_names = [
     "Affine",
     "Change gamma",
     "Translation",
-    "Scale",
+    "Elastic transform",
     "Brightness",
     "Histogram equalization",
     "Salt and pepper",
@@ -454,7 +471,7 @@ def segment_original_crop_only_segmentation(aug, mask_generator):
         # segmented_image = np.where(inverse_mask_np[:, :, None], blurred_image_np, image_np)
         # segmented_image_pil = Image.fromarray(segmented_image)
         # ret_images.append(segmented_image_pil)
-
+    cv2.imwrite('/home/sagemaker-user/DeepLearning_project/output.jpg', image_np)
     return ret_images
 
 
@@ -502,6 +519,7 @@ def segment_original_blackBG_only_segmentation(aug, mask_generator):
         # segmented_image = np.where(inverse_mask_np[:, :, None], blurred_image_np, image_np)
         # segmented_image_pil = Image.fromarray(segmented_image)
         # ret_images.append(segmented_image_pil)
+    cv2.imwrite('/home/sagemaker-user/DeepLearning_project/output.jpg', image_np)
 
     return ret_images
 
@@ -571,6 +589,7 @@ def segment_original_blackBG_only_segmentation_andGC(aug, mask_generator, centro
 
     return ret_images
 
+
 def segment_original_blackBG_only_segmentation_and_GC_bBOX(aug, mask_generator, centroid):
     ret_images = []
     original_image = aug[0]
@@ -595,10 +614,10 @@ def segment_original_blackBG_only_segmentation_and_GC_bBOX(aug, mask_generator, 
 
     # Draw centroid on the resized image
     centroid_x, centroid_y = centroid
-    centroid_resized = (int(centroid_x * image_np.shape[0] / 224), int(centroid_y * image_np.shape[1] / 224))
-    copy = image_np
-    cv2.circle(copy, centroid_resized, radius=5, color=(0, 255, 0), thickness=-1)
-    cv2.imwrite('/home/sagemaker-user/DeepLearning_project/output.jpg', copy)
+    centroid_resized = (int(centroid_x * image_np.shape[1] / 224), int(centroid_y * image_np.shape[0] / 224))
+    image_copy = copy.deepcopy(image_np)
+    cv2.circle(image_copy, centroid_resized, radius=10, color=(0, 255, 0), thickness=-1)
+    cv2.imwrite('/home/sagemaker-user/DeepLearning_project/output.jpg', image_copy)
 
     mask_found = False
     closest_mask = None
@@ -610,7 +629,7 @@ def segment_original_blackBG_only_segmentation_and_GC_bBOX(aug, mask_generator, 
         mask_np = mask["segmentation"]
         
         # Check if the centroid is within the mask
-        if mask_np[centroid_resized[0], centroid_resized[1]]:
+        if mask_np[centroid_resized[1], centroid_resized[0]]:
             mask_found = True
             finded_masks.append(mask_np)
         

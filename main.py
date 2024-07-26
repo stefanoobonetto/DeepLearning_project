@@ -141,14 +141,23 @@ def create_gradcam(image, model, target_layers):
     # Threshold the heatmap to identify the most important region
     threshold_value = np.max(heatmap) * 1
     important_region = np.where(heatmap == threshold_value)
-
+    
     # Calculate the centroid of the important region
-    centroid_x = np.mean(important_region[1])
-    centroid_y = np.mean(important_region[0])
+    centroid_x = important_region[1][0]
+    centroid_y = important_region[0][0]
     centroid = (int(centroid_x), int(centroid_y))
 
 
+
+
     cam_image = show_cam_on_image(image, grayscale_cam)
+    
+    # centroid_resized = (int(centroid[0] * image.shape[1] / 224), int(centroid[1] * image.shape[0] / 224))
+    # copy = cam_image
+    # copy = cv2.cvtColor(cam_image, cv2.COLOR_BGR2RGB)
+    # copy = cv2.circle(copy, centroid_resized, radius=10, color=(0, 255, 0), thickness=-1)
+    # cv2.imwrite('/home/sagemaker-user/DeepLearning_project/provona.jpg', copy)
+
     return Image.fromarray(cam_image), centroid, important_region
 
 def summation(lst):
@@ -164,7 +173,7 @@ def main(colab=False):
     pathDatasetImagenetA = os.path.join(current_dir, "datasets/imagenet-a")
     pathDatasetImagenrtV2 = os.path.join(current_dir, "datasets/imagenetv2-matched-frequency-format-val")
     checkpoint_path = os.path.join(current_dir, "weights/sam_vit_b_01ec64.pth")
-    output_csv_path = os.path.join(current_dir, "test_16_07_ONLY_MEMO_PLUS.csv")
+    output_csv_path = os.path.join(current_dir, "test_16_07_ONLY_MEMO_PLUS_ALL_115_UP.csv")
     
 
     N_IMAGES = 250
@@ -214,37 +223,30 @@ def main(colab=False):
     # Process test data
     pbar = tqdm(range(len(test_data)))  # Adjust the range as necessary
     for i in pbar:
-        # Reset model to initial weights before each iteration
+
+          
+        # Load an image and its target
+        image, target = test_data[i]
+
+  
         model.load_state_dict(torch.load(initial_weights_path))
         model.eval()
         
-        
-        # Load an image and its target
-        image, target = test_data[i]
-        # print(target)
 
-        
-        # print(type(image))
-        # tryn = np.float32(image) / 255
-        # print(type(tryn))
 
         # Test the model before applying MEMO
         correct_before_memo.append(test_model(image=image, target=target, model=model))
 
         gradcam_initial, centroid, regions = create_gradcam(np.float32(image) / 255, model, target_layers)
 
-        # # Tune the model using MEMO
-        # augmentation, name_aug = tune_model(image=image, model=model, mask_generator=mask_generator, optimizer=optimizer, cost_function=marginal_entropy, num_aug=num_aug, flag_memo_plus=False, centroid=centroid)
+        # Tune the model using MEMO
+        augmentation, name_aug = tune_model(image=image, model=model, mask_generator=mask_generator, optimizer=optimizer, cost_function=marginal_entropy, num_aug=num_aug, flag_memo_plus=False, centroid=centroid)
 
-        # # Test the model after applying MEMO
-        # correct_after_memo.append(test_model(image=image, target=target, model=model))
+        # Test the model after applying MEMO
+        correct_after_memo.append(test_model(image=image, target=target, model=model))
 
-        # gradcam_memo, centroid, regions= create_gradcam(np.float32(image) / 255, model, target_layers)
+        gradcam_memo, centroid, regions= create_gradcam(np.float32(image) / 255, model, target_layers)
 
-
-        # Reset model to initial weights before each iteration
-        # model.load_state_dict(torch.load(initial_weights_path))
-        # model.eval()
         
         # Tune the model using MEMO
         segmentation, name_aug_plus = tune_model(image=image, model=model, mask_generator=mask_generator, optimizer=optimizer, cost_function=marginal_entropy, num_aug=num_aug, flag_memo_plus=True, centroid=centroid)
@@ -254,10 +256,6 @@ def main(colab=False):
         
         gradcam_memo_plus,_,_ = create_gradcam(np.float32(image) / 255, model, target_layers)
 
-        # # accuracy
-        # accuracy_before_memo = np.mean(correct_before_memo)*100
-        # accuracy_after_memo = np.mean(correct_after_memo)*100
-        # accuracy_after_memo_plus = np.mean(correct_after_memo_plus)*100
 
 
         accuracy_before_memo = (summation(correct_before_memo)/len(correct_before_memo))*100
@@ -275,12 +273,12 @@ def main(colab=False):
         accuracy_classes[f"{target}_after_MEMO_PLUS"]["augmentation"].append(name_aug_plus)
         # accuracy_classes[f"{target}_after_MEMO_PLUS"]["augmentation"].append(name_aug_plus)
 
-        # # Save the augmentation results
-        # # save_report_image(augmentation = augmentation, output_path = os.path.join(current_dir, f"Results/{i}"))
-        # save_report_image(image=image, augmentation=augmentation, 
-        #                   segmentation=segmentation, gradcam_original= gradcam_initial, 
-        #                   gradcam_memo=gradcam_memo, gradcam_memo_plus=gradcam_memo_plus, 
-        #                   output_path = os.path.join(current_dir, f"Results/test1"), n_image = i)
+        # Save the augmentation results
+        # save_report_image(augmentation = augmentation, output_path = os.path.join(current_dir, f"Results/{i}"))
+        save_report_image(image=image, augmentation=augmentation, 
+                          segmentation=segmentation, gradcam_original= gradcam_initial, 
+                          gradcam_memo=gradcam_memo, gradcam_memo_plus=gradcam_memo_plus, 
+                          output_path = os.path.join(current_dir, f"Results/test1"), n_image = i)
         
         # # Salvataggio dei dati di accuratezza in un file CSV ogni 100 epoche
         # if( i % 50 == 0):

@@ -1,93 +1,91 @@
+
 import csv
 import matplotlib.pyplot as plt
 import numpy as np
 
-def leggi_csv(file_path):
+def read_csv(file_path):
     """
-    Legge un file CSV e restituisce i dati sotto forma di lista di dizionari.
+    Reads a CSV file and returns the data as a list of dictionaries.
     
-    :param file_path: Il percorso del file CSV da leggere.
-    :return: Una lista di dizionari, dove ogni dizionario rappresenta una riga del CSV.
+    :param file_path: The path to the CSV file to read.
+    :return: A list of dictionaries, where each dictionary represents a row in the CSV.
     """
-    dati = []
+    data = []
 
     with open(file_path, mode='r', encoding='utf-8') as file:
         reader = csv.DictReader(file)
         for row in reader:
-            dati.append(row)
+            data.append(row)
     
-    return dati
+    return data
 
-# Esempio di utilizzo
-file_path = '/home/sagemaker-user/DeepLearning_project/Results/test_15_07_ONLY_MEMO.csv'
-dati = leggi_csv(file_path)
+# Example usage
+file_path = '/home/sagemaker-user/DeepLearning_project/Results/test_16_07_ONLY_MEMO_PLUS.csv'
+data = read_csv(file_path)
 
-dati_before_MEMO = []
-dati_after_MEMO = []
-dati_after_MEMO_PLUS = []
+data_before_MEMO = []
+data_after_MEMO = []
+data_after_MEMO_PLUS = []
 
-for index, riga in enumerate(dati):
+for index, row in enumerate(data):
 
-    if index != len(dati) - 1:
-        split_name = riga['Class'].split('_')
+    if index != len(data) - 1:
+        split_name = row['Class'].split('_')
         # print(split_name)
         if split_name[1] == "before":
-      
-            data = eval(riga['Result_for_image'])
+            data_row = eval(row['Result_for_image'])
             tot_correct = 0
-            for elem in data:
+            for elem in data_row:
                 tot_correct += elem[0]
-            accuracy = (tot_correct/len(data))*100
-            dati_before_MEMO.append(accuracy)
+            accuracy = (tot_correct/len(data_row))*100
+            data_before_MEMO.append(accuracy)
 
         elif split_name[1] == "after":
+            data_row = eval(row['Result_for_image'])
+            tot_correct = 0
+            for elem in data_row:
+                tot_correct += elem[0]
+            accuracy = (tot_correct/len(data_row))*100
             if len(split_name) == 3:
-                data = eval(riga['Result_for_image'])
-                tot_correct = 0
-                for elem in data:
-                    tot_correct += elem[0]
-                accuracy = (tot_correct/len(data))*100
-                dati_after_MEMO_PLUS.append(accuracy)
+                data_after_MEMO_PLUS.append(accuracy)
             else:
-                data = eval(riga['Result_for_image'])
-                tot_correct = 0
-                for elem in data:
-                    tot_correct += elem[0]
-                accuracy = (tot_correct/len(data))*100
-                dati_after_MEMO.append(accuracy)
+                data_after_MEMO.append(accuracy)
 
-print(len(dati))
-print(len(dati_before_MEMO))
-print(len(dati_after_MEMO))
+print(len(data))
+print(len(data_before_MEMO))
+print(len(data_after_MEMO))
 
-
-# Impostazioni per il grafico
+# Settings for the plot
 num_plots = 4
 elements_per_plot = 50
 
-# Creazione dei subplots
-fig, axs = plt.subplots(num_plots, 1, figsize=(10, 20))
+# Create subplots (2 plots per row, 2 rows)
+fig, axs = plt.subplots(2, 2, figsize=(15, 10))
 
 for i in range(num_plots):
+    row = i // 2
+    col = i % 2
     start_index = i * elements_per_plot
     end_index = start_index + elements_per_plot
     index = np.arange(start_index, end_index)
     
-    # Linea per la Serie A
-    axs[i].plot(index, dati_before_MEMO[start_index:end_index], marker='o', label='Serie A')
-    # Linea per la Serie B
-    axs[i].plot(index, dati_after_MEMO[start_index:end_index], marker='x', label='Serie B')
+    # Line for Serie A
+    axs[row, col].plot(index, data_before_MEMO[start_index:end_index], marker='o', label='before MEMO_PLUS')
+    # Line for Serie B
+    axs[row, col].plot(index, data_after_MEMO[start_index:end_index], marker='x', label='after MEMO_PLUS')
     
-    axs[i].set_title(f'Elementi {start_index + 1} a {end_index}')
-    axs[i].set_xlabel('Indice Elemento')
-    axs[i].set_ylabel('Valore')
-    axs[i].legend()
+    axs[row, col].set_title(f'Classes {start_index + 1} to {end_index}')
+    axs[row, col].set_xlabel('Classes Index')
+    axs[row, col].set_ylabel('Value')
+    
+    if(i == 1):
+        axs[row, col].legend()
 
-# Ajustar l'layout per evitare sovrapposizioni
+# Adjust layout to avoid overlaps
 plt.tight_layout()
 
-# Mostra il grafico
+# Show the plot
 
 # Save the plot to a file
-output_path = '/home/sagemaker-user/DeepLearning_project/analize_script/stacked_bar_chart.pdf'
+output_path = '/home/sagemaker-user/DeepLearning_project/analize_script/stacked_bar_chart.jpg'
 plt.savefig(output_path)

@@ -48,9 +48,9 @@ def tune_model(image, model, mask_generator, optimizer, cost_function, num_aug, 
     # aug = []
 
     if flag_memo_plus:
-        segmentation = segment_original_blackBG_only_segmentation_and_GC_bBOX(aug, mask_generator, centroid)
-        for elem in segmentation:
-            aug.append(elem)
+        aug = segment_original_blackBG_only_segmentation_and_GC_bBOX(aug, mask_generator, (100,100))
+        # aug = segment_original_blackBG_only_segmentation_and_GC_bBOX(aug, mask_generator)
+    
 
     segmented_aug = transform_images(aug)
 
