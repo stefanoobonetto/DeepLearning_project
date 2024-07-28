@@ -30,9 +30,11 @@ An alternative approach is **Test-Time Adaptation (TTA)**, which aims to improve
 
 
 ### MEMO
-For this project, MEMO was applied to a pretrained Convolutional Neural Network, **ViT-b/16**, using the **ImageNetV2** dataset. This network operates as follows: given a test point \( x \in X \), it produces a conditional output distribution \( p(y|x; w) \) over a set of classes \( Y \), and predicts a label \( \hat{y} \) as:
+For this project, MEMO was applied to a pretrained Convolutional Neural Network, **ViT-b/16**, using the **ImageNetV2** dataset. This network operates as follows: given a test point $$ x \in X $$, it produces a conditional output distribution $$ p(y|x; w) $$ over a set of classes $$ Y $$, and predicts a label $$ \hat{y} $$ as:
 
-\[ \hat{y} = M(x | w) = \arg \max_{y \in Y} p(y | x; w) \]
+$$
+  \hat{y} = M(x | w) = \arg \max_{y \in Y} p(y | x; w) 
+$$
 
 <p align="center" text-align="center">
   <img width="75%" src="https://github.com/christiansassi/deep-learning-project/blob/main/assets/img1.jpg?raw=true">
@@ -40,15 +42,19 @@ For this project, MEMO was applied to a pretrained Convolutional Neural Network,
   <span><b>Fig. 1</b> MEMO overview</span>
 </p>
 
-Let \( A = \{a_1,...,a_M\} \) be a set of augmentations (resizing, cropping, color jittering, etc.). Each augmentation \( a_i \in A \) can be applied to an input sample \(x\), resulting in a transformed sample denoted as \(a_i(x)\), as shown in the figure. The objective here is to make the model's prediction invariant to those specific transformations.
+Let $$ A = \{a_1,...,a_M\} $$ be a set of augmentations (resizing, cropping, color jittering, etc.). Each augmentation $$ a_i \in A $$ can be applied to an input sample $$x$$, resulting in a transformed sample denoted as $$a_i(x)$$, as shown in the figure. The objective here is to make the model's prediction invariant to those specific transformations.
 
-MEMO starts by applying a set of \( B \) augmentation functions sampled from \( A \) to \( x \). It then calculates the average, or marginal, output distribution \( \bar{p}(y | x; w) \) by averaging the conditional output distributions over these augmentations, represented as:
+MEMO starts by applying a set of $$ B $$ augmentation functions sampled from $$ A $$ to $$ x $$. It then calculates the average, or marginal, output distribution $$ \bar{p}(y | x; w) $$ by averaging the conditional output distributions over these augmentations, represented as:
 
-\[ \bar{p}(y | x; w) = \frac{1}{B} \sum_{i=1}^B p(y | a_i(x); w) \]
+$$ 
+  \bar{p}(y | x; w) = \frac{1}{B} \sum_{i=1}^B p(y | a_i(x); w) 
+$$
 
-Since the true label \(y\) is not available during testing, the objective of Test-Time Adaptation (TTA) is twofold: (i) to ensure that the model's predictions have the same label \( y \) across various augmented versions of the test sample, and (ii) to increase the confidence in the model's predictions, given that the augmented versions have the same label. To this end, the model is trained to minimize the entropy of the marginal output distribution across augmentations, defined as:
+Since the true label $$y$$ is not available during testing, the objective of Test-Time Adaptation (TTA) is twofold: (i) to ensure that the model's predictions have the same label $$y$$ across various augmented versions of the test sample, and (i) to increase the confidence in the model's predictions, given that the augmented versions have the same label. To this end, the model is trained to minimize the entropy of the marginal output distribution across augmentations, defined as:
 
-\[ L(w; x) = H(\bar{p}(\cdot | x;w)) = -\sum_{y \in Y} \bar{p}(y | x;w) \log \bar{p}(y | x;w) \]
+$$ 
+  L(w; x) = H(\bar{p}(\cdot | x;w)) = -\sum_{y \in Y} \bar{p}(y | x;w) \log \bar{p}(y | x;w) 
+$$
 
 ### MEMO_PLUS
 
