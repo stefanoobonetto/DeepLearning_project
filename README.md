@@ -183,4 +183,11 @@ This repository also includes a Jupyter Notebook `DeepLearningProject.ipynb` whi
 
 Contributions are welcome! Please feel free to submit a Pull Request or open an Issue if you have any suggestions or improvements.
 
+## Contact us
+
+| Name             | Email                                | ID      | Program                        |
+|------------------|--------------------------------------|---------|--------------------------------|
+| Stefano Bonetto   | stefano.bonetto@studenti.unitn.it    | 247179  | Artificial Intelligence Systems|
+| Alberto Dian      | alberto.dian@studenti.unitn.it       | 247376  | EIT Autonomous Systems         |
+| Simone Roman      | simone.roman@studenti.unitn.it       | 247181  | Artificial Intelligence Systems|
 
