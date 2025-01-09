@@ -1,4 +1,4 @@
-# DeepLearning Project
+# MEMO_PLUS - DeepLearning Project
 
 This repository contains the code and resources for a deep learning project focused on image classification and segmentation using various augmentation techniques and Grad-CAM visualization.
 
